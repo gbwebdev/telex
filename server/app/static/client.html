@@ -7,7 +7,7 @@
 <style>
 :root {
   --bg: #0a0a0a; --surface: #141414; --border: #252525;
-  --amber: #e8b84b; --amber-dim: #6b5322;
+  --amber: #e8b84b; --amber-dim: #a07840;
   --green: #4caf50; --red: #f44336;
   --font: 'Courier New', monospace;
 }
@@ -52,7 +52,23 @@ input, textarea {
 }
 input:focus, textarea:focus { border-color: var(--amber-dim); }
 input[type="password"] { letter-spacing: .15em; font-size: 1.1rem; }
-textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+
+/* Simulates the thermal printer: 42-char width, paper appearance */
+textarea {
+  box-sizing: content-box;
+  width: 42ch;
+  max-width: calc(100% - 1.7rem);
+  background: #f4efe3;
+  color: #1a1209;
+  border: 1px solid #c8b99a;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: .65rem .85rem;
+  min-height: 130px;
+  resize: vertical;
+}
+textarea:focus { border-color: #a09070; }
+textarea::placeholder { color: #c0a87a; }
 
 .char-row { display: flex; justify-content: flex-end; margin-top: .3rem; }
 .char-count { font-size: .78rem; color: var(--amber-dim); }
