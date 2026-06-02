@@ -1,0 +1,17 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Data
+server/data/
+
+# Claude Code
+.claude/

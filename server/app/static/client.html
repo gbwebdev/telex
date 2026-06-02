@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telex</title>
+<style>
+:root {
+  --bg: #0a0a0a; --surface: #141414; --border: #252525;
+  --amber: #e8b84b; --amber-dim: #6b5322;
+  --green: #4caf50; --red: #f44336;
+  --font: 'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--amber);
+  font-family: var(--font); min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+
+.card { width: 100%; max-width: 480px; }
+
+/* Header */
+.telex-header { text-align: center; margin-bottom: 2rem; }
+.telex-header .logo { font-size: 2rem; letter-spacing: .5em; }
+.telex-header .to {
+  font-size: 1rem; color: var(--amber-dim);
+  margin-top: .4rem; letter-spacing: .05em;
+}
+.telex-header .name {
+  font-size: 1.4rem; margin-top: .15rem;
+}
+
+/* States */
+#state-loading, #state-error, #state-form, #state-success { display: none; }
+#state-loading.active, #state-error.active, #state-form.active, #state-success.active {
+  display: block;
+}
+
+/* Form */
+label {
+  display: block; font-size: .75rem; color: var(--amber-dim);
+  letter-spacing: .12em; margin-bottom: .3rem; margin-top: 1.1rem;
+}
+label:first-of-type { margin-top: 0; }
+
+input, textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber); font-family: var(--font);
+  padding: .65rem .85rem; font-size: 1rem; outline: none;
+}
+input:focus, textarea:focus { border-color: var(--amber-dim); }
+input[type="password"] { letter-spacing: .15em; font-size: 1.1rem; }
+textarea { resize: vertical; min-height: 130px; line-height: 1.6; }
+
+.char-row { display: flex; justify-content: flex-end; margin-top: .3rem; }
+.char-count { font-size: .78rem; color: var(--amber-dim); }
+.char-count.over { color: var(--red); }
+
+.send-btn {
+  width: 100%; margin-top: 1.25rem;
+  background: none; border: 1px solid var(--amber-dim);
+  color: var(--amber); font-family: var(--font);
+  font-size: 1rem; padding: .7rem; cursor: pointer;
+  letter-spacing: .1em;
+}
+.send-btn:hover { border-color: var(--amber); background: rgba(232,184,75,.07); }
+.send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Feedback */
+.feedback {
+  margin-top: .75rem; padding: .55rem .75rem;
+  font-size: .85rem; display: none; border-left: 2px solid;
+}
+.feedback.err { color: var(--red); border-color: var(--red); display: block; }
+.feedback.warn { color: var(--amber); border-color: var(--amber-dim); display: block; }
+
+/* Success state */
+.success-box { text-align: center; padding: 1.5rem 0; }
+.success-icon { font-size: 2.5rem; margin-bottom: .75rem; }
+.success-text { font-size: 1.1rem; margin-bottom: .3rem; }
+.success-sub { font-size: .85rem; color: var(--amber-dim); }
+.new-btn {
+  margin-top: 1.5rem; background: none; border: 1px solid var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .85rem; padding: .5rem 1.2rem; cursor: pointer;
+}
+.new-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+
+/* Error state */
+.error-box { text-align: center; padding: 1.5rem 0; color: var(--amber-dim); }
+
+/* Loading */
+.loading-box { text-align: center; color: var(--amber-dim); padding: 2rem 0; font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="card">
+
+  <div class="telex-header">
+    <div class="logo">TELEX</div>
+    <div class="to">Message pour</div>
+    <div class="name" id="client-name">…</div>
+  </div>
+
+  <!-- Loading -->
+  <div id="state-loading" class="active">
+    <div class="loading-box">Chargement…</div>
+  </div>
+
+  <!-- 404 / error -->
+  <div id="state-error">
+    <div class="error-box">
+      <div style="font-size:1.5rem;margin-bottom:.5rem;">✗</div>
+      <div id="error-msg">Destinataire introuvable.</div>
+    </div>
+  </div>
+
+  <!-- Send form -->
+  <div id="state-form">
+    <label>MOT DE PASSE</label>
+    <input type="password" id="password" autocomplete="off" inputmode="numeric"
+           placeholder="••••••••" autofocus>
+
+    <label>VOTRE MESSAGE <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(500 car. max)</span></label>
+    <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
+    <div class="char-row"><span id="char-count" class="char-count">0 / 500</span></div>
+
+    <div id="form-feedback" class="feedback"></div>
+
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
+  </div>
+
+  <!-- Success -->
+  <div id="state-success">
+    <div class="success-box">
+      <div class="success-icon">✓</div>
+      <div class="success-text">Message envoyé !</div>
+      <div class="success-sub" id="success-sub"></div>
+      <button class="new-btn" onclick="newMessage()">Envoyer un autre message</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const identifier = location.pathname.replace(/^\/+|\/+$/g, '');
+let clientName = '';
+// Keep password in memory for the session (cleared when tab closes)
+let savedPassword = sessionStorage.getItem('telex_pwd_' + identifier) || '';
+
+function show(stateId) {
+  ['loading', 'error', 'form', 'success'].forEach(s => {
+    document.getElementById('state-' + s).classList.remove('active');
+  });
+  document.getElementById('state-' + stateId).classList.add('active');
+}
+
+async function init() {
+  if (!identifier) {
+    document.getElementById('error-msg').textContent = 'Adresse incorrecte.';
+    show('error');
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/public/${identifier}`);
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      document.getElementById('error-msg').textContent = d.detail || 'Destinataire introuvable.';
+      show('error');
+      return;
+    }
+    const data = await r.json();
+    clientName = data.name;
+    document.getElementById('client-name').textContent = clientName;
+    document.title = `Telex — ${clientName}`;
+
+    if (savedPassword) {
+      document.getElementById('password').value = savedPassword;
+    }
+    show('form');
+  } catch {
+    document.getElementById('error-msg').textContent = 'Erreur de connexion au serveur.';
+    show('error');
+  }
+}
+
+document.getElementById('content').addEventListener('input', function() {
+  const n = this.value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${n} / 500`;
+  el.classList.toggle('over', n > 500);
+});
+
+// Send on Ctrl+Enter / Cmd+Enter
+document.getElementById('content').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage();
+});
+
+async function sendMessage() {
+  const password = document.getElementById('password').value;
+  const content = document.getElementById('content').value.trim();
+  const fb = document.getElementById('form-feedback');
+  fb.className = 'feedback';
+
+  if (!password) { setFeedback('Entrez le mot de passe.', 'warn'); return; }
+  if (!content) { setFeedback('Le message est vide.', 'warn'); return; }
+  if (content.length > 500) { setFeedback('Message trop long (max 500 caractères).', 'warn'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+
+  try {
+    const r = await fetch(`/api/public/${identifier}/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, content }),
+    });
+    const data = await r.json();
+
+    if (r.ok) {
+      // Remember password for this session
+      sessionStorage.setItem('telex_pwd_' + identifier, password);
+      savedPassword = password;
+      document.getElementById('success-sub').textContent =
+        `Il sera imprimé chez ${clientName} dans quelques instants.`;
+      show('success');
+    } else if (r.status === 429) {
+      setFeedback(data.detail, 'err');
+    } else if (r.status === 401) {
+      setFeedback(data.detail, 'err');
+      document.getElementById('password').value = '';
+      document.getElementById('password').focus();
+      savedPassword = '';
+      sessionStorage.removeItem('telex_pwd_' + identifier);
+    } else {
+      setFeedback(data.detail || 'Erreur. Réessayez.', 'err');
+    }
+  } catch {
+    setFeedback('Erreur de connexion. Réessayez.', 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'ENVOYER →';
+}
+
+function setFeedback(msg, type) {
+  const fb = document.getElementById('form-feedback');
+  fb.textContent = msg;
+  fb.className = `feedback ${type}`;
+}
+
+function newMessage() {
+  document.getElementById('content').value = '';
+  document.getElementById('char-count').textContent = '0 / 500';
+  document.getElementById('form-feedback').className = 'feedback';
+  if (savedPassword) {
+    document.getElementById('password').value = savedPassword;
+  }
+  show('form');
+  document.getElementById('content').focus();
+}
+
+init();
+</script>
+</body>
+</html>

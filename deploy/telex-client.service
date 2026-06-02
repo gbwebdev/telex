@@ -1,0 +1,17 @@
+[Unit]
+Description=Telex Client Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/telex/client
+ExecStart=/opt/telex/venv/bin/python telex_client.py
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

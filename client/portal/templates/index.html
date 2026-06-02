@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telex — Configuration</title>
+<style>
+:root { --bg:#111; --surface:#1a1a1a; --border:#2a2a2a; --amber:#e8b84b; --amber-dim:#6b5322; --green:#4caf50; --red:#f44336; --blue:#64b5f6; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:var(--bg); color:#ddd; min-height:100vh; }
+header { background:var(--surface); border-bottom:1px solid var(--border); padding:1rem 1.5rem; display:flex; align-items:center; gap:1rem; }
+header h1 { font-family:'Courier New',monospace; color:var(--amber); letter-spacing:.3em; font-size:1.3rem; }
+.status-bar { display:flex; gap:1rem; margin-left:auto; flex-wrap:wrap; }
+.badge { font-size:.75rem; padding:.2rem .6rem; border-radius:2px; font-family:'Courier New',monospace; }
+.badge.ok { background:rgba(76,175,80,.2); color:var(--green); border:1px solid var(--green); }
+.badge.err { background:rgba(244,67,54,.15); color:var(--red); border:1px solid var(--red); }
+.badge.warn { background:rgba(232,184,75,.15); color:var(--amber); border:1px solid var(--amber-dim); }
+
+main { max-width:680px; margin:0 auto; padding:1.5rem; display:flex; flex-direction:column; gap:1.5rem; }
+.card { background:var(--surface); border:1px solid var(--border); padding:1.25rem; }
+.card-title { font-size:.7rem; letter-spacing:.2em; color:var(--amber-dim); margin-bottom:1rem; font-family:'Courier New',monospace; }
+label { display:block; font-size:.8rem; color:#999; margin-bottom:.25rem; margin-top:.75rem; }
+label:first-of-type { margin-top:0; }
+input { width:100%; background:var(--bg); border:1px solid var(--border); color:#eee; padding:.55rem .75rem; font-size:.9rem; border-radius:2px; outline:none; }
+input:focus { border-color:var(--amber-dim); }
+select { width:100%; background:var(--bg); border:1px solid var(--border); color:#eee; padding:.55rem .75rem; font-size:.9rem; border-radius:2px; outline:none; }
+
+.btn { display:inline-block; background:none; border:1px solid var(--amber-dim); color:var(--amber); padding:.5rem 1rem; cursor:pointer; font-size:.85rem; border-radius:2px; }
+.btn:hover { border-color:var(--amber); background:rgba(232,184,75,.07); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-sm { padding:.3rem .7rem; font-size:.78rem; }
+.btn-secondary { border-color:var(--border); color:#aaa; }
+.btn-secondary:hover { border-color:#555; color:#ddd; }
+.btn-full { width:100%; margin-top:.75rem; }
+.btn-danger { border-color:var(--red); color:var(--red); }
+
+.row { display:flex; gap:.5rem; align-items:flex-end; }
+.row input { flex:1; }
+.info-grid { display:grid; grid-template-columns:auto 1fr; gap:.3rem .75rem; font-size:.85rem; }
+.info-label { color:#777; }
+.info-value { font-family:'Courier New',monospace; color:#ddd; word-break:break-all; }
+.feedback { font-size:.82rem; margin-top:.5rem; padding:.4rem; display:none; border-radius:2px; }
+.feedback.ok { color:var(--green); background:rgba(76,175,80,.1); }
+.feedback.err { color:var(--red); background:rgba(244,67,54,.08); }
+.wifi-list { display:flex; flex-direction:column; gap:.3rem; max-height:200px; overflow-y:auto; }
+.wifi-item { display:flex; align-items:center; gap:.75rem; padding:.5rem .6rem; cursor:pointer; border:1px solid transparent; border-radius:2px; }
+.wifi-item:hover, .wifi-item.selected { border-color:var(--border); background:rgba(255,255,255,.04); }
+.wifi-ssid { flex:1; font-size:.9rem; }
+.wifi-signal { font-size:.75rem; color:#666; }
+.loading { color:#555; font-size:.85rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TELEX</h1>
+  <div id="status-bar" class="status-bar">
+    <span class="badge warn">Chargement…</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Info système -->
+  <div class="card">
+    <div class="card-title">ÉTAT DU SYSTÈME</div>
+    <div id="info-grid" class="info-grid">
+      <span class="info-label">IP</span><span class="info-value" id="s-ip">—</span>
+      <span class="info-label">MAC</span><span class="info-value" id="s-mac">—</span>
+      <span class="info-label">Serveur</span><span class="info-value" id="s-server">—</span>
+      <span class="info-label">Identifiant</span><span class="info-value" id="s-id">—</span>
+      <span class="info-label">Nom</span><span class="info-value" id="s-name">—</span>
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="printTicket()">🖨 Réimprimer le ticket</button>
+      <button class="btn btn-sm btn-secondary" onclick="loadStatus()">↺ Actualiser</button>
+    </div>
+    <div id="ticket-feedback" class="feedback"></div>
+  </div>
+
+  <!-- Config Telex -->
+  <div class="card">
+    <div class="card-title">CONNEXION AU SERVEUR</div>
+    <label>URL du serveur</label>
+    <input type="url" id="c-server" placeholder="https://telex.example.com" value="{{ conf.get('server_url', '') }}">
+    <label>Identifiant</label>
+    <input type="text" id="c-id" placeholder="arthur" value="{{ conf.get('identifier', '') }}" autocomplete="off">
+    <label>Mot de passe</label>
+    <div class="row">
+      <input type="password" id="c-password" placeholder="••••••••••••" autocomplete="off">
+      <button class="btn btn-sm btn-secondary" onclick="togglePwd()">Voir</button>
+    </div>
+    <button class="btn btn-full" onclick="saveConfig()">ENREGISTRER</button>
+    <div id="config-feedback" class="feedback"></div>
+  </div>
+
+  <!-- Nom -->
+  <div class="card">
+    <div class="card-title">NOM AFFICHÉ</div>
+    <p style="font-size:.82rem;color:#777;margin-bottom:.75rem;">Modifie le nom sur le serveur Telex (nécessite une connexion active).</p>
+    <div class="row">
+      <input type="text" id="c-name" placeholder="Arthur" maxlength="50">
+      <button class="btn btn-sm" onclick="updateName()">Changer</button>
+    </div>
+    <div id="name-feedback" class="feedback"></div>
+  </div>
+
+  <!-- WiFi -->
+  <div class="card">
+    <div class="card-title">RÉSEAU WIFI</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+      <span id="wifi-current" style="font-size:.85rem;color:#999;">Scan…</span>
+      <button class="btn btn-sm btn-secondary" onclick="scanWifi()">↺ Scanner</button>
+    </div>
+    <div id="wifi-list" class="wifi-list"><div class="loading">Recherche…</div></div>
+    <div id="wifi-form" style="display:none;margin-top:.75rem;">
+      <label>Mot de passe WiFi pour "<span id="wifi-ssid-label"></span>"</label>
+      <div class="row">
+        <input type="password" id="wifi-password" placeholder="Mot de passe" autocomplete="off">
+        <button class="btn btn-sm" onclick="connectWifi()">Connecter</button>
+      </div>
+    </div>
+    <div id="wifi-feedback" class="feedback"></div>
+  </div>
+
+</main>
+
+<script>
+let selectedSsid = null;
+
+async function loadStatus() {
+  const r = await fetch('/api/status');
+  const d = await r.json();
+
+  document.getElementById('s-ip').textContent = d.ip || '—';
+  document.getElementById('s-mac').textContent = d.mac || '—';
+  document.getElementById('s-server').textContent = d.server_url || '—';
+  document.getElementById('s-id').textContent = d.identifier || '—';
+  document.getElementById('s-name').textContent = d.server_name || (d.identifier ? '(non récupéré)' : '—');
+
+  const bar = document.getElementById('status-bar');
+  bar.innerHTML = '';
+  bar.appendChild(badge(d.wifi ? 'WiFi ✓' : 'WiFi ✗', d.wifi ? 'ok' : 'err'));
+  if (d.configured) bar.appendChild(badge(d.server_ok ? 'Serveur ✓' : 'Serveur ✗', d.server_ok ? 'ok' : 'err'));
+  else bar.appendChild(badge('Non configuré', 'warn'));
+}
+
+function badge(text, cls) {
+  const el = document.createElement('span');
+  el.className = `badge ${cls}`;
+  el.textContent = text;
+  return el;
+}
+
+async function printTicket() {
+  const fb = document.getElementById('ticket-feedback');
+  fb.style.display = 'none';
+  const r = await fetch('/api/ticket', { method: 'POST' });
+  const d = await r.json();
+  show(fb, d.success ? 'Ticket imprimé.' : `Erreur : ${d.error}`, d.success);
+}
+
+async function saveConfig() {
+  const body = {
+    server_url: document.getElementById('c-server').value.trim(),
+    identifier: document.getElementById('c-id').value.trim().toLowerCase(),
+    password: document.getElementById('c-password').value,
+  };
+  const r = await fetch('/api/config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const d = await r.json();
+  const fb = document.getElementById('config-feedback');
+  show(fb, d.success ? 'Configuration enregistrée.' : `Erreur : ${d.error}`, d.success);
+  if (d.success) setTimeout(loadStatus, 1000);
+}
+
+function togglePwd() {
+  const i = document.getElementById('c-password');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+async function updateName() {
+  const name = document.getElementById('c-name').value.trim();
+  const fb = document.getElementById('name-feedback');
+  if (!name) { show(fb, 'Entrez un nom.', false); return; }
+  const r = await fetch('/api/name', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+  });
+  const d = await r.json();
+  show(fb, d.success ? `Nom changé en "${d.name}".` : `Erreur : ${d.error}`, d.success);
+  if (d.success) loadStatus();
+}
+
+async function scanWifi() {
+  document.getElementById('wifi-list').innerHTML = '<div class="loading">Scan…</div>';
+  const r = await fetch('/api/wifi/scan');
+  const nets = await r.json();
+  const el = document.getElementById('wifi-list');
+  if (!nets.length) { el.innerHTML = '<div class="loading">Aucun réseau trouvé.</div>'; return; }
+  el.innerHTML = nets.map(n => `
+    <div class="wifi-item" onclick="selectWifi('${esc(n.ssid)}', this)">
+      <span class="wifi-ssid">${esc(n.ssid)}</span>
+      <span class="wifi-signal">${n.signal}% ${n.security ? '🔒' : ''}</span>
+    </div>`).join('');
+}
+
+function selectWifi(ssid, el) {
+  document.querySelectorAll('.wifi-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedSsid = ssid;
+  document.getElementById('wifi-ssid-label').textContent = ssid;
+  document.getElementById('wifi-form').style.display = 'block';
+  document.getElementById('wifi-password').focus();
+}
+
+async function connectWifi() {
+  if (!selectedSsid) return;
+  const password = document.getElementById('wifi-password').value;
+  const fb = document.getElementById('wifi-feedback');
+  show(fb, 'Connexion en cours…', null);
+  const r = await fetch('/api/wifi/connect', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ssid: selectedSsid, password }),
+  });
+  const d = await r.json();
+  if (d.success) {
+    show(fb, `Connecté ! IP : ${d.ip || '?'}. Reconnectez-vous à votre réseau habituel.`, true);
+    setTimeout(loadStatus, 3000);
+  } else {
+    show(fb, d.error || 'Échec.', false);
+  }
+}
+
+function show(el, msg, ok) {
+  el.textContent = msg;
+  el.className = ok === null ? 'feedback warn' : `feedback ${ok ? 'ok' : 'err'}`;
+  el.style.display = ok === null ? 'block' : 'block';
+  if (ok !== null) setTimeout(() => { if (ok) el.style.display = 'none'; }, 5000);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadStatus();
+scanWifi();
+</script>
+</body>
+</html>

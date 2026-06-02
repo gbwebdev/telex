@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TELEX — Envoyer</title>
+<style>
+:root { --bg:#0a0a0a; --surface:#141414; --border:#252525; --amber:#e8b84b; --amber-dim:#6b5322; --green:#4caf50; --red:#f44336; --font:'Courier New',monospace; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--amber); font-family:var(--font); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+.card { width:100%; max-width:480px; }
+h1 { font-size:2rem; letter-spacing:.4em; text-align:center; margin-bottom:.3rem; }
+.subtitle { text-align:center; color:var(--amber-dim); font-size:.8rem; margin-bottom:2rem; }
+label { display:block; font-size:.75rem; color:var(--amber-dim); letter-spacing:.1em; margin-bottom:.3rem; margin-top:1rem; }
+input, textarea { width:100%; background:var(--surface); border:1px solid var(--border); color:var(--amber); font-family:var(--font); padding:.6rem .8rem; font-size:.95rem; outline:none; }
+input:focus, textarea:focus { border-color:var(--amber-dim); }
+textarea { resize:vertical; min-height:120px; line-height:1.5; }
+.footer { display:flex; justify-content:space-between; align-items:center; margin-top:.4rem; }
+.char-count { font-size:.8rem; color:var(--amber-dim); }
+.char-count.over { color:var(--red); }
+button[type=submit] { width:100%; margin-top:1.5rem; background:none; border:1px solid var(--amber-dim); color:var(--amber); font-family:var(--font); font-size:.9rem; padding:.65rem; cursor:pointer; letter-spacing:.1em; }
+button[type=submit]:hover { border-color:var(--amber); background:rgba(232,184,75,.07); }
+button[type=submit]:disabled { opacity:.4; cursor:not-allowed; }
+.status { margin-top:1rem; font-size:.85rem; padding:.5rem; text-align:center; display:none; }
+.status.ok { color:var(--green); }
+.status.err { color:var(--red); }
+.admin-link { text-align:center; margin-top:2rem; font-size:.75rem; }
+.admin-link a { color:var(--amber-dim); text-decoration:none; }
+.admin-link a:hover { color:var(--amber); }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>TELEX</h1>
+  <div class="subtitle">Envoyer un message</div>
+
+  <form id="send-form">
+    <label>IDENTIFIANT DU DESTINATAIRE</label>
+    <input type="text" id="identifier" placeholder="ex: arthur" autocomplete="off" required>
+
+    <label>MOT DE PASSE</label>
+    <input type="password" id="password" autocomplete="off" required>
+
+    <label>MESSAGE</label>
+    <textarea id="content" maxlength="500" placeholder="Votre message…" required></textarea>
+    <div class="footer">
+      <span id="char-count" class="char-count">0 / 500</span>
+    </div>
+
+    <button type="submit" id="send-btn">ENVOYER →</button>
+    <div id="status" class="status"></div>
+  </form>
+
+  <div class="admin-link"><a href="/">← Administration</a></div>
+</div>
+
+<script>
+document.getElementById('content').addEventListener('input', function() {
+  const n = this.value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${n} / 500`;
+  el.classList.toggle('over', n > 500);
+});
+
+document.getElementById('send-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('send-btn');
+  const status = document.getElementById('status');
+  btn.disabled = true;
+  status.style.display = 'none';
+
+  const body = {
+    identifier: document.getElementById('identifier').value.trim(),
+    password: document.getElementById('password').value,
+    content: document.getElementById('content').value.trim(),
+  };
+
+  if (body.content.length > 500) {
+    show('Message trop long (max 500 caractères).', false);
+    btn.disabled = false;
+    return;
+  }
+
+  const r = await fetch('/api/admin/send', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json();
+
+  if (r.ok) {
+    show('Message envoyé !', true);
+    document.getElementById('content').value = '';
+    document.getElementById('char-count').textContent = '0 / 500';
+  } else {
+    show(data.detail || 'Erreur lors de l\'envoi.', false);
+  }
+  btn.disabled = false;
+});
+
+function show(msg, ok) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = `status ${ok ? 'ok' : 'err'}`;
+  el.style.display = 'block';
+}
+</script>
+</body>
+</html>

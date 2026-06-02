@@ -1,0 +1,18 @@
+[Unit]
+Description=Telex WiFi Manager
+Before=telex-client.service telex-portal.service
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/telex/client
+ExecStart=/opt/telex/venv/bin/python wifi_manager.py
+# Exit 0 = connected (client service starts), Exit 1 = hotspot created (portal starts)
+RemainAfterExit=no
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

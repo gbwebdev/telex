@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TELEX — Admin</title>
+<style>
+:root {
+  --bg: #0a0a0a; --surface: #141414; --border: #252525;
+  --amber: #e8b84b; --amber-dim: #6b5322;
+  --green: #4caf50; --red: #f44336; --blue: #64b5f6;
+  --font: 'Courier New', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--amber); font-family: var(--font); min-height: 100vh; }
+
+/* ── Login ── */
+#login-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; flex-direction:column; gap:1.5rem; }
+#login-screen h1 { font-size:3rem; letter-spacing:.5em; }
+#login-screen p { color:var(--amber-dim); font-size:.9rem; }
+#login-form { display:flex; flex-direction:column; gap:.75rem; width:300px; }
+#login-error { color:var(--red); font-size:.85rem; display:none; }
+.login-links { display:flex; gap:1rem; justify-content:center; }
+.login-links a { color:var(--amber-dim); font-size:.8rem; text-decoration:none; }
+.login-links a:hover { color:var(--amber); }
+
+/* ── App ── */
+#app { display:none; }
+header { padding:.75rem 1.5rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:2rem; }
+header h1 { font-size:1.4rem; letter-spacing:.4em; }
+nav { display:flex; gap:.5rem; }
+nav button { background:none; border:1px solid transparent; color:var(--amber-dim); padding:.35rem 1rem; cursor:pointer; font-family:var(--font); font-size:.85rem; letter-spacing:.1em; }
+nav button:hover { color:var(--amber); border-color:var(--border); }
+nav button.active { color:var(--amber); border-color:var(--amber-dim); }
+.logout-btn { margin-left:auto; background:none; border:none; color:var(--amber-dim); cursor:pointer; font-family:var(--font); font-size:.8rem; }
+.logout-btn:hover { color:var(--amber); }
+main { max-width:900px; margin:0 auto; padding:1.5rem; }
+.section { display:none; }
+.section.active { display:block; }
+
+/* ── Forms & inputs ── */
+input, select, textarea {
+  background:var(--surface); border:1px solid var(--border);
+  color:var(--amber); font-family:var(--font); padding:.6rem .8rem;
+  font-size:.9rem; outline:none; width:100%;
+}
+input:focus, select:focus, textarea:focus { border-color:var(--amber-dim); }
+textarea { resize:vertical; min-height:100px; line-height:1.5; }
+label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; color:var(--amber-dim); letter-spacing:.1em; }
+
+/* ── Buttons ── */
+.btn { background:none; border:1px solid var(--amber-dim); color:var(--amber); font-family:var(--font); font-size:.85rem; padding:.5rem 1.2rem; cursor:pointer; letter-spacing:.05em; }
+.btn:hover { border-color:var(--amber); background:rgba(232,184,75,.07); }
+.btn:disabled { opacity:.4; cursor:not-allowed; }
+.btn-sm { padding:.25rem .6rem; font-size:.75rem; }
+.btn-danger { border-color:var(--red); color:var(--red); }
+.btn-danger:hover { background:rgba(244,67,54,.08); }
+.btn-ghost { border-color:transparent; color:var(--amber-dim); }
+.btn-ghost:hover { color:var(--amber); border-color:var(--border); }
+
+/* ── Section header ── */
+.section-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid var(--border); }
+.section-title { font-size:.75rem; letter-spacing:.2em; color:var(--amber-dim); }
+.empty-state { color:var(--amber-dim); font-size:.9rem; padding:2rem 0; }
+.loading { color:var(--amber-dim); font-size:.85rem; padding:1rem 0; }
+
+/* ── Client cards ── */
+.client-list { display:flex; flex-direction:column; gap:.5rem; }
+.client-card { background:var(--surface); border:1px solid var(--border); padding:.9rem 1rem; }
+.client-card-header { display:flex; align-items:center; gap:.8rem; }
+.status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.status-dot.online { background:var(--green); box-shadow:0 0 5px var(--green); }
+.status-dot.offline { background:var(--amber-dim); }
+.client-name { font-size:1rem; flex:1; }
+.client-id { font-size:.7rem; color:var(--amber-dim); font-family:var(--font); }
+.client-meta { font-size:.75rem; color:var(--amber-dim); margin-top:.4rem; padding-left:1.3rem; }
+.client-actions { display:flex; gap:.4rem; align-items:center; }
+.info-tag { font-size:.7rem; background:var(--border); padding:.15rem .5rem; color:var(--amber-dim); }
+
+/* ── Create client form ── */
+.create-form { background:var(--surface); border:1px solid var(--border); padding:1rem; margin-bottom:1rem; }
+.create-form-fields { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.75rem; }
+@media(max-width:500px) { .create-form-fields { grid-template-columns:1fr; } }
+
+/* ── Password reveal ── */
+.password-reveal { background:rgba(232,184,75,.08); border:1px solid var(--amber-dim); padding:1rem; margin-bottom:1rem; }
+.password-reveal p { font-size:.8rem; color:var(--amber-dim); margin-bottom:.5rem; }
+.password-value { font-size:1.1rem; letter-spacing:.15em; display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.copy-btn { font-size:.7rem; background:none; border:1px solid var(--amber-dim); color:var(--amber); padding:.2rem .5rem; cursor:pointer; font-family:var(--font); }
+.copy-btn:hover { background:rgba(232,184,75,.1); }
+
+/* ── Compose ── */
+.recipients { display:flex; flex-direction:column; gap:.4rem; margin-bottom:1.5rem; }
+.recipient-row { display:flex; align-items:center; gap:.75rem; padding:.5rem .75rem; border:1px solid var(--border); cursor:pointer; }
+.recipient-row:hover { border-color:var(--amber-dim); }
+.recipient-row.selected { border-color:var(--amber-dim); background:rgba(232,184,75,.05); }
+.recipient-row input[type=checkbox] { accent-color:var(--amber); cursor:pointer; }
+.compose-footer { display:flex; justify-content:space-between; align-items:center; margin-top:.5rem; }
+.char-count { font-size:.8rem; color:var(--amber-dim); }
+.char-count.over { color:var(--red); }
+.send-feedback { font-size:.85rem; margin-top:.5rem; display:none; padding:.4rem; }
+.send-feedback.ok { color:var(--green); }
+.send-feedback.err { color:var(--red); }
+
+/* ── Messages ── */
+.messages-list { display:flex; flex-direction:column; gap:.75rem; }
+.msg-card { background:var(--surface); border:1px solid var(--border); padding:.9rem 1rem; }
+.msg-header { display:flex; justify-content:space-between; gap:1rem; margin-bottom:.6rem; }
+.msg-content { line-height:1.5; word-break:break-word; }
+.msg-time { font-size:.75rem; color:var(--amber-dim); flex-shrink:0; }
+.deliveries { display:flex; flex-wrap:wrap; gap:.4rem; margin-top:.6rem; }
+.chip { display:flex; align-items:center; gap:.35rem; font-size:.75rem; padding:.2rem .55rem; border:1px solid var(--border); }
+.chip.pending { color:var(--amber-dim); }
+.chip.delivered { color:var(--blue); }
+.chip.printed { color:var(--green); }
+.chip.failed { color:var(--red); border-color:var(--red); }
+.chip .resend { background:none; border:none; color:inherit; cursor:pointer; font-family:var(--font); font-size:.7rem; padding:0; opacity:.6; margin-left:.2rem; }
+.chip .resend:hover { opacity:1; }
+.error-line { font-size:.7rem; color:var(--red); margin-top:.4rem; padding:.3rem .5rem; border-left:2px solid var(--red); word-break:break-all; }
+
+/* ── Toast ── */
+#toast { position:fixed; bottom:1.5rem; right:1.5rem; background:var(--surface); border:1px solid var(--amber-dim); color:var(--amber); padding:.7rem 1.1rem; font-size:.85rem; opacity:0; transition:opacity .3s; pointer-events:none; }
+#toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h1>TELEX</h1>
+  <p>Administration</p>
+  <form id="login-form">
+    <input type="password" id="api-key-input" placeholder="Clé API admin" autocomplete="off">
+    <div id="login-error">Clé incorrecte</div>
+    <button type="submit" class="btn">CONNEXION</button>
+  </form>
+  <div class="login-links">
+    <a href="/send">Envoyer un message →</a>
+  </div>
+</div>
+
+<div id="app">
+  <header>
+    <h1>TELEX</h1>
+    <nav>
+      <button class="active" data-section="clients">CLIENTS</button>
+      <button data-section="compose">ENVOYER</button>
+      <button data-section="messages">MESSAGES</button>
+      <button data-section="security" id="security-tab-btn">SÉCURITÉ</button>
+    </nav>
+    <button class="logout-btn" onclick="logout()">déconnexion</button>
+  </header>
+
+  <main>
+    <!-- ── Clients ── -->
+    <div id="clients-section" class="section active">
+      <div class="section-header">
+        <span class="section-title">CLIENTS ENREGISTRÉS</span>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-sm" onclick="toggleCreateForm()">+ Nouveau</button>
+          <button class="btn btn-sm btn-ghost" onclick="loadClients()">↺</button>
+        </div>
+      </div>
+
+      <!-- Create form (hidden by default) -->
+      <div id="create-form" class="create-form" style="display:none;">
+        <div class="section-title" style="margin-bottom:.75rem;">NOUVEAU CLIENT</div>
+        <div class="create-form-fields">
+          <label class="field">PRÉNOM / NOM
+            <input type="text" id="new-name" placeholder="Arthur" maxlength="50">
+          </label>
+          <label class="field">IDENTIFIANT (lettres minuscules, tirets)
+            <input type="text" id="new-id" placeholder="arthur" maxlength="30" pattern="[a-z0-9\-]+" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9\-]/g,'')">
+          </label>
+          <label class="field" style="grid-column:1/-1;">MOT DE PASSE D'ENVOI (pour envoyer des messages, ex: date de naissance)
+            <input type="text" id="new-send-pwd" placeholder="12042015" autocomplete="off">
+          </label>
+        </div>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-sm" onclick="createClient()">CRÉER</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleCreateForm()">Annuler</button>
+        </div>
+        <div id="create-error" class="send-feedback err" style="display:none;"></div>
+      </div>
+
+      <!-- Password reveal (shown after creation) -->
+      <div id="password-reveal" class="password-reveal" style="display:none;">
+        <p>⚠ Mot de passe généré — notez-le maintenant, il ne sera plus affiché :</p>
+        <div class="password-value">
+          <span id="revealed-password"></span>
+          <button class="copy-btn" onclick="copyPassword()">COPIER</button>
+        </div>
+        <p style="margin-top:.5rem;font-size:.75rem;">Mot de passe du RPi — configurez-le via l'interface web du RPi (http://&lt;ip-du-rpi&gt;).</p>
+        <button class="btn btn-sm btn-ghost" style="margin-top:.5rem;" onclick="document.getElementById('password-reveal').style.display='none'">Fermer</button>
+      </div>
+
+      <div id="clients-list" class="client-list">
+        <div class="loading">Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ── Compose ── -->
+    <div id="compose-section" class="section">
+      <div class="section-header">
+        <span class="section-title">NOUVEAU MESSAGE</span>
+      </div>
+      <div class="section-title" style="margin-bottom:.6rem;">DESTINATAIRES</div>
+      <div id="recipients-list" class="recipients">
+        <div class="loading">Chargement…</div>
+      </div>
+      <div class="section-title" style="margin-bottom:.5rem;">MESSAGE</div>
+      <textarea id="msg-text" placeholder="Votre message…" maxlength="500"></textarea>
+      <div class="compose-footer">
+        <span id="char-count" class="char-count">0 / 500</span>
+        <button class="btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
+      </div>
+      <div id="send-feedback" class="send-feedback"></div>
+    </div>
+
+    <!-- ── Security ── -->
+    <div id="security-section" class="section">
+      <div class="section-header">
+        <span class="section-title">SÉCURITÉ</span>
+        <button class="btn btn-sm btn-ghost" onclick="loadSecurity()">↺</button>
+      </div>
+
+      <!-- Locked clients -->
+      <div style="margin-bottom:1.5rem;">
+        <div class="section-title" style="margin-bottom:.6rem;">CLIENTS VERROUILLÉS</div>
+        <div id="locked-clients-list"><div class="loading">Chargement…</div></div>
+      </div>
+
+      <!-- Active bans -->
+      <div style="margin-bottom:1.5rem;">
+        <div class="section-title" style="margin-bottom:.6rem;">BANNISSEMENTS IP ACTIFS</div>
+        <div id="bans-list"><div class="loading">Chargement…</div></div>
+      </div>
+
+      <!-- Recent attempts -->
+      <div>
+        <div class="section-title" style="margin-bottom:.6rem;">TENTATIVES ÉCHOUÉES (24H)</div>
+        <div id="attempts-list"><div class="loading">Chargement…</div></div>
+      </div>
+    </div>
+
+    <!-- ── Messages ── -->
+    <div id="messages-section" class="section">
+      <div class="section-header">
+        <span class="section-title">HISTORIQUE</span>
+        <button class="btn btn-sm btn-ghost" onclick="loadMessages()">↺</button>
+      </div>
+      <div id="messages-list" class="messages-list">
+        <div class="loading">Chargement…</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let apiKey = sessionStorage.getItem('telex_admin_key') || '';
+let clients = [];
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function tryLogin(key) {
+  const r = await fetch('/api/admin/clients', { headers: { 'X-Api-Key': key } });
+  return r.status !== 401;
+}
+
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  if (await tryLogin(key)) {
+    apiKey = key;
+    sessionStorage.setItem('telex_admin_key', key);
+    showApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+  }
+});
+
+function logout() {
+  sessionStorage.removeItem('telex_admin_key');
+  apiKey = '';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadClients();
+}
+
+// ── Nav ───────────────────────────────────────────────────────────────────────
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.section + '-section').classList.add('active');
+    if (btn.dataset.section === 'clients') loadClients();
+    if (btn.dataset.section === 'compose') loadRecipients();
+    if (btn.dataset.section === 'messages') loadMessages();
+    if (btn.dataset.section === 'security') loadSecurity();
+  });
+});
+
+// ── API ───────────────────────────────────────────────────────────────────────
+function api(path, opts = {}) {
+  return fetch(path, {
+    ...opts,
+    headers: { 'X-Api-Key': apiKey, 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+  });
+}
+
+// ── Clients ───────────────────────────────────────────────────────────────────
+async function loadClients() {
+  const r = await api('/api/admin/clients');
+  clients = await r.json();
+  renderClients();
+}
+
+function renderClients() {
+  const el = document.getElementById('clients-list');
+  if (!clients.length) {
+    el.innerHTML = '<div class="empty-state">Aucun client. Cliquez sur "+ Nouveau" pour en créer un.</div>';
+    return;
+  }
+  el.innerHTML = clients.map(c => {
+    const lastSeen = c.last_seen ? new Date(c.last_seen + 'Z').toLocaleString('fr-FR') : 'Jamais';
+    const ip = c.ip_address ? `IP: ${esc(c.ip_address)} · ` : '';
+    const mac = c.mac_address ? `MAC: ${esc(c.mac_address)} · ` : '';
+    const printerInfo = c.printer_info ? JSON.parse(c.printer_info) : null;
+    return `
+    <div class="client-card">
+      <div class="client-card-header">
+        <div class="status-dot ${c.online ? 'online' : 'offline'}" title="${c.online ? 'En ligne' : 'Hors ligne'}"></div>
+        <div style="flex:1">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-id">${esc(c.identifier)}</div>
+        </div>
+        <div class="client-actions">
+          ${printerInfo ? `<span class="info-tag">🖨 ${esc(printerInfo.name || '?')}</span>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="copySendLink('${esc(c.identifier)}')" title="Copier le lien d'envoi">🔗</button>
+          <button class="btn btn-sm btn-ghost" onclick="setSendPassword('${esc(c.identifier)}', '${esc(c.name)}')" title="Mot de passe d'envoi">🔑</button>
+          ${c.send_locked ? `<button class="btn btn-sm btn-ghost" onclick="unlockClient('${esc(c.identifier)}', '${esc(c.name)}')" title="Déverrouiller">🔓</button>` : ''}
+          <button class="btn btn-sm btn-ghost" onclick="resetDevicePassword('${esc(c.identifier)}', '${esc(c.name)}')" title="Mot de passe RPi">⟳</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteClient('${esc(c.identifier)}', '${esc(c.name)}')" title="Supprimer">✕</button>
+        </div>
+      </div>
+      <div class="client-meta">
+        ${c.send_locked ? `<span style="color:var(--red);">🔒 Verrouillé</span> · ` : ''}
+        ${!c.has_send_password ? '<span style="color:var(--red);">⚠ Pas de mot de passe d\'envoi</span> · ' : ''}
+        ${ip}${mac}Vu : ${lastSeen}
+        ${c.ip_address ? ` · <a href="http://${esc(c.ip_address)}" target="_blank" style="color:var(--amber-dim);text-decoration:none;">config →</a>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCreateForm() {
+  const f = document.getElementById('create-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('create-error').style.display = 'none';
+}
+
+async function createClient() {
+  const name = document.getElementById('new-name').value.trim();
+  const identifier = document.getElementById('new-id').value.trim().toLowerCase();
+  const send_password = document.getElementById('new-send-pwd').value.trim();
+  const errEl = document.getElementById('create-error');
+  errEl.style.display = 'none';
+
+  if (!name || !identifier) { errEl.textContent = 'Nom et identifiant requis.'; errEl.style.display = 'block'; return; }
+
+  const r = await api('/api/admin/clients', { method: 'POST', body: { name, identifier, send_password } });
+  const data = await r.json();
+
+  if (!r.ok) { errEl.textContent = data.detail || 'Erreur.'; errEl.style.display = 'block'; return; }
+
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-id').value = '';
+  document.getElementById('new-send-pwd').value = '';
+  toggleCreateForm();
+
+  // Show device password reveal
+  document.getElementById('revealed-password').textContent = data.device_password;
+  document.getElementById('password-reveal').style.display = 'block';
+
+  await loadClients();
+}
+
+function copySendLink(identifier) {
+  const url = `${location.origin}/${identifier}`;
+  navigator.clipboard.writeText(url).then(() => toast(`Lien copié : ${url}`));
+}
+
+async function setSendPassword(identifier, name) {
+  const pwd = prompt(`Mot de passe d'envoi pour "${name}" :\n(ex: date de naissance 12042015)`);
+  if (pwd === null) return;
+  if (!pwd.trim()) { toast('Mot de passe vide — annulé.'); return; }
+  const r = await api(`/api/admin/clients/${identifier}/set-send-password`, {
+    method: 'POST', body: { password: pwd.trim() }
+  });
+  if (r.ok) toast('Mot de passe d\'envoi mis à jour.');
+  else toast('Erreur lors de la mise à jour.');
+  loadClients();
+}
+
+async function resetDevicePassword(identifier, name) {
+  if (!confirm(`Regénérer le mot de passe RPi de "${name}" ?\nLe RPi devra être reconfiguré via son portail web.`)) return;
+  const r = await api(`/api/admin/clients/${identifier}/reset-device-password`, { method: 'POST' });
+  const data = await r.json();
+  document.getElementById('revealed-password').textContent = data.device_password;
+  document.getElementById('password-reveal').style.display = 'block';
+  window.scrollTo(0, 0);
+  toast('Nouveau mot de passe RPi généré');
+}
+
+async function deleteClient(identifier, name) {
+  if (!confirm(`Supprimer "${name}" (${identifier}) et tous ses messages ? Cette action est irréversible.`)) return;
+  await api(`/api/admin/clients/${identifier}`, { method: 'DELETE' });
+  toast('Client supprimé');
+  loadClients();
+}
+
+function copyPassword() {
+  const pwd = document.getElementById('revealed-password').textContent;
+  navigator.clipboard.writeText(pwd).then(() => toast('Copié !'));
+}
+
+// ── Compose ───────────────────────────────────────────────────────────────────
+async function loadRecipients() {
+  if (!clients.length) await loadClients();
+  const el = document.getElementById('recipients-list');
+  if (!clients.length) { el.innerHTML = '<div class="empty-state">Aucun client enregistré.</div>'; return; }
+  el.innerHTML = clients.map(c => `
+    <label class="recipient-row" onclick="this.classList.toggle('selected')">
+      <input type="checkbox" value="${esc(c.identifier)}">
+      <span style="flex:1">${esc(c.name)} <span style="color:var(--amber-dim);font-size:.8rem;">${esc(c.identifier)}</span></span>
+      <div class="status-dot ${c.online ? 'online' : 'offline'}"></div>
+    </label>`).join('');
+}
+
+document.getElementById('msg-text').addEventListener('input', function() {
+  const n = this.value.length;
+  const el = document.getElementById('char-count');
+  el.textContent = `${n} / 500`;
+  el.classList.toggle('over', n > 500);
+});
+
+async function sendMessage() {
+  const content = document.getElementById('msg-text').value.trim();
+  const identifiers = [...document.querySelectorAll('#recipients-list input:checked')].map(i => i.value);
+  const fb = document.getElementById('send-feedback');
+
+  if (!content) return showFeedback('Écrivez un message.', false);
+  if (content.length > 500) return showFeedback('Trop long (max 500 caractères).', false);
+  if (!identifiers.length) return showFeedback('Sélectionnez au moins un destinataire.', false);
+
+  document.getElementById('send-btn').disabled = true;
+  const r = await api('/api/admin/messages', { method: 'POST', body: { content, client_identifiers: identifiers } });
+
+  if (r.ok) {
+    showFeedback(`Envoyé à ${identifiers.length} destinataire(s).`, true);
+    document.getElementById('msg-text').value = '';
+    document.getElementById('char-count').textContent = '0 / 500';
+    document.querySelectorAll('#recipients-list input').forEach(i => { i.checked = false; i.closest('label').classList.remove('selected'); });
+  } else {
+    const e = await r.json();
+    showFeedback(e.detail || 'Erreur.', false);
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function showFeedback(msg, ok) {
+  const el = document.getElementById('send-feedback');
+  el.textContent = msg;
+  el.className = `send-feedback ${ok ? 'ok' : 'err'}`;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+async function loadMessages() {
+  const r = await api('/api/admin/messages');
+  const msgs = await r.json();
+  const el = document.getElementById('messages-list');
+  if (!msgs.length) { el.innerHTML = '<div class="empty-state">Aucun message.</div>'; return; }
+  const icons = { pending:'⌛', delivered:'✓', printed:'✓✓', failed:'✗' };
+  const labels = { pending:'En attente', delivered:'Reçu', printed:'Imprimé', failed:'Échec' };
+  el.innerHTML = msgs.map(m => {
+    const errors = m.deliveries.filter(d => d.status === 'failed' && d.error_msg);
+    return `
+    <div class="msg-card">
+      <div class="msg-header">
+        <div class="msg-content">${esc(m.content)}</div>
+        <div class="msg-time">${new Date(m.sent_at + 'Z').toLocaleString('fr-FR')}</div>
+      </div>
+      <div class="deliveries">
+        ${m.deliveries.map(d => `
+          <div class="chip ${d.status}" title="${labels[d.status] || d.status}">
+            <span>${icons[d.status] || '?'}</span>
+            <span>${esc(d.client_name || d.client_identifier)}</span>
+            ${(d.status === 'failed' || d.status === 'delivered') ? `<button class="resend" onclick="resend(${d.id})" title="Réimprimer">↺</button>` : ''}
+          </div>`).join('')}
+      </div>
+      ${errors.map(d => `<div class="error-line">✗ ${esc(d.client_name || d.client_identifier)}: ${esc(d.error_msg)}</div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+async function resend(id) {
+  await api(`/api/admin/deliveries/${id}/resend`, { method: 'POST' });
+  toast('Renvoi programmé');
+  loadMessages();
+}
+
+// ── Security ──────────────────────────────────────────────────────────────────
+
+async function unlockClient(identifier, name) {
+  if (!confirm(`Déverrouiller "${name}" et rétablir l'accès à sa page d'envoi ?`)) return;
+  await api(`/api/admin/clients/${identifier}/unlock`, { method: 'POST' });
+  toast(`${name} déverrouillé`);
+  loadClients();
+  // Refresh security tab if visible
+  if (document.getElementById('security-section').classList.contains('active')) loadSecurity();
+}
+
+async function loadSecurity() {
+  const r = await api('/api/admin/security');
+  const d = await r.json();
+  renderLockedClients(d.locked_clients);
+  renderBans(d.active_bans);
+  renderAttempts(d.recent_attempts);
+
+  // Update tab badge
+  const alertCount = d.locked_clients.length + d.active_bans.filter(b => !b.banned_until).length;
+  const btn = document.getElementById('security-tab-btn');
+  btn.textContent = alertCount > 0 ? `SÉCURITÉ ⚠${alertCount}` : 'SÉCURITÉ';
+}
+
+function renderLockedClients(list) {
+  const el = document.getElementById('locked-clients-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state">Aucun client verrouillé.</div>'; return; }
+  el.innerHTML = list.map(c => `
+    <div class="client-card" style="border-color:var(--red);">
+      <div class="client-card-header">
+        <div class="status-dot" style="background:var(--red);"></div>
+        <div style="flex:1">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-id">${esc(c.identifier)}</div>
+        </div>
+        <div class="client-actions">
+          <button class="btn btn-sm" onclick="unlockClient('${esc(c.identifier)}','${esc(c.name)}')">🔓 Déverrouiller</button>
+        </div>
+      </div>
+      <div class="client-meta">Verrouillé le : ${c.locked_at ? new Date(c.locked_at+'Z').toLocaleString('fr-FR') : '?'}</div>
+    </div>`).join('');
+}
+
+const BAN_LEVELS = { 1: '1h', 2: '72h', 3: 'PERMANENT' };
+const BAN_COLORS = { 1: 'var(--amber)', 2: 'var(--red)', 3: 'var(--red)' };
+
+function renderBans(bans) {
+  const el = document.getElementById('bans-list');
+  if (!bans.length) { el.innerHTML = '<div class="empty-state">Aucun bannissement actif.</div>'; return; }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+      <thead><tr style="color:var(--amber-dim);text-align:left;border-bottom:1px solid var(--border);">
+        <th style="padding:.4rem .6rem;">IP</th>
+        <th style="padding:.4rem .6rem;">Client</th>
+        <th style="padding:.4rem .6rem;">Niveau</th>
+        <th style="padding:.4rem .6rem;">Expire</th>
+        <th style="padding:.4rem .6rem;"></th>
+      </tr></thead>
+      <tbody>${bans.map(b => {
+        const expiry = b.banned_until
+          ? new Date(b.banned_until+'Z').toLocaleString('fr-FR')
+          : '∞ Permanent';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:.4rem .6rem;font-family:monospace;">${esc(b.ip)}</td>
+          <td style="padding:.4rem .6rem;">${esc(b.client_name)}</td>
+          <td style="padding:.4rem .6rem;color:${BAN_COLORS[b.level]}">${BAN_LEVELS[b.level]}</td>
+          <td style="padding:.4rem .6rem;color:var(--amber-dim);">${expiry}</td>
+          <td style="padding:.4rem .6rem;">
+            <button class="btn btn-sm btn-ghost" onclick="liftBan(${b.id})">Lever</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+async function liftBan(banId) {
+  if (!confirm('Lever ce bannissement ?')) return;
+  await api(`/api/admin/security/bans/${banId}/lift`, { method: 'POST' });
+  toast('Bannissement levé');
+  loadSecurity();
+}
+
+function renderAttempts(attempts) {
+  const el = document.getElementById('attempts-list');
+  if (!attempts.length) { el.innerHTML = '<div class="empty-state">Aucune tentative échouée dans les dernières 24h.</div>'; return; }
+
+  // Group by (ip, identifier)
+  const groups = {};
+  const now = Date.now();
+  for (const a of attempts) {
+    const key = `${a.ip}|${a.identifier}`;
+    if (!groups[key]) groups[key] = { ip: a.ip, identifier: a.identifier, name: a.client_name, cnt: 0, cnt_1h: 0, cnt_15m: 0 };
+    const age = now - new Date(a.attempted_at + 'Z').getTime();
+    groups[key].cnt++;
+    if (age < 3600000) groups[key].cnt_1h++;
+    if (age < 900000)  groups[key].cnt_15m++;
+  }
+
+  const sorted = Object.values(groups).sort((a, b) => b.cnt - a.cnt).slice(0, 30);
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+      <thead><tr style="color:var(--amber-dim);text-align:left;border-bottom:1px solid var(--border);">
+        <th style="padding:.4rem .6rem;">IP</th>
+        <th style="padding:.4rem .6rem;">Client</th>
+        <th style="padding:.4rem .6rem;text-align:right;">15min</th>
+        <th style="padding:.4rem .6rem;text-align:right;">1h</th>
+        <th style="padding:.4rem .6rem;text-align:right;">24h</th>
+      </tr></thead>
+      <tbody>${sorted.map(g => {
+        const color = g.cnt >= 10 ? 'var(--red)' : g.cnt_1h >= 5 ? 'var(--amber)' : 'inherit';
+        return `<tr style="border-bottom:1px solid var(--border);color:${color}">
+          <td style="padding:.4rem .6rem;font-family:monospace;">${esc(g.ip)}</td>
+          <td style="padding:.4rem .6rem;">${esc(g.name)}</td>
+          <td style="padding:.4rem .6rem;text-align:right;">${g.cnt_15m}</td>
+          <td style="padding:.4rem .6rem;text-align:right;">${g.cnt_1h}</td>
+          <td style="padding:.4rem .6rem;text-align:right;">${g.cnt}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+if (apiKey) tryLogin(apiKey).then(ok => ok ? showApp() : null);
+
+setInterval(() => {
+  if (document.getElementById('messages-section').classList.contains('active')) loadMessages();
+  if (document.getElementById('clients-section').classList.contains('active')) loadClients();
+  if (document.getElementById('security-section').classList.contains('active')) loadSecurity();
+  else loadSecurity();  // always refresh badge in background
+}, 30000);
+</script>
+</body>
+</html>
