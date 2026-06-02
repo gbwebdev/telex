@@ -1,7 +1,14 @@
 """
 Auto-detects a USB thermal printer and prints ESC/POS formatted messages.
+
+Two connection modes are supported:
+  - USB bulk (libusb/pyusb): Epson TM series and most ESC/POS printers.
+    Requires usblp kernel module to be blacklisted (see deploy/install.sh).
+  - Serial over USB (CDC ACM): printers that present as /dev/ttyACM*.
+    Requires the pi user to be in the dialout group.
 """
 
+import glob
 import json
 import logging
 import textwrap
@@ -9,7 +16,7 @@ from datetime import datetime
 
 log = logging.getLogger(__name__)
 
-KNOWN_PRINTERS = [
+KNOWN_USB_PRINTERS = [
     (0x04B8, 0x0202, "Epson TM-T20II"),
     (0x04B8, 0x0232, "Epson TM-T20III"),
     (0x04B8, 0x0301, "Epson TM-T88V"),
@@ -18,34 +25,32 @@ KNOWN_PRINTERS = [
     (0x1504, 0x0006, "Generic ESC/POS"),
     (0x0FE6, 0x811E, "Generic ESC/POS (ICS)"),
     (0x28E9, 0x0289, "Generic ESC/POS"),
-    (0x20D1, 0x7008, "PRP-250 variant"),
-    (0x0483, 0x5720, "PRP-250 variant"),
 ]
 
 PAPER_WIDTH = 42  # characters at 80mm / 12cpi
 
 
 def detect_printer():
-    """Return (printer_instance, info_dict) or (None, None)."""
+    """Return (printer_instance, info_dict) or (None, None).
+
+    Detection order:
+      1. Known USB printers by VID/PID (bulk mode, libusb)
+      2. Any USB device with printer interface class 7 (bulk mode, libusb)
+      3. CDC ACM serial-over-USB devices (/dev/ttyACM*)
+    """
+    # ── 1 & 2: USB bulk mode ─────────────────────────────────────────────────
     try:
         import usb.core
         from escpos.printer import Usb
-    except ImportError:
-        log.error("python-escpos or pyusb not installed")
-        return None, None
 
-    for vid, pid, name in KNOWN_PRINTERS:
-        if usb.core.find(idVendor=vid, idProduct=pid):
-            log.info("Found: %s (%04x:%04x)", name, vid, pid)
-            try:
-                return Usb(vid, pid), {"name": name, "vid": hex(vid), "pid": hex(pid)}
-            except Exception as e:
-                log.warning("Could not open %s: %s", name, e)
+        for vid, pid, name in KNOWN_USB_PRINTERS:
+            if usb.core.find(idVendor=vid, idProduct=pid):
+                log.info("Found: %s (%04x:%04x)", name, vid, pid)
+                try:
+                    return Usb(vid, pid), {"name": name, "mode": "usb", "vid": hex(vid), "pid": hex(pid)}
+                except Exception as e:
+                    log.warning("Could not open %s: %s", name, e)
 
-    # Fallback: any USB device with a printer interface (class 7)
-    try:
-        import usb.core
-        from escpos.printer import Usb
         for dev in usb.core.find(find_all=True):
             try:
                 for cfg in dev:
@@ -53,12 +58,34 @@ def detect_printer():
                         if intf.bInterfaceClass == 7:
                             vid, pid = dev.idVendor, dev.idProduct
                             name = f"USB Printer ({vid:04x}:{pid:04x})"
-                            log.info("Found generic: %s", name)
-                            return Usb(vid, pid), {"name": name, "vid": hex(vid), "pid": hex(pid)}
+                            log.info("Found generic USB: %s", name)
+                            return Usb(vid, pid), {"name": name, "mode": "usb", "vid": hex(vid), "pid": hex(pid)}
             except Exception:
                 continue
+
+    except ImportError:
+        log.warning("pyusb/python-escpos not available, skipping USB bulk detection")
     except Exception as e:
         log.error("USB scan error: %s", e)
+
+    # ── 3: CDC ACM / serial-over-USB ─────────────────────────────────────────
+    # Printers like PRP-250 present as /dev/ttyACM* instead of USB bulk.
+    try:
+        from escpos.printer import Serial
+
+        for dev_path in sorted(glob.glob("/dev/ttyACM*")):
+            log.info("Trying serial printer: %s", dev_path)
+            try:
+                p = Serial(dev_path, baudrate=9600)
+                name = f"Serial Printer ({dev_path})"
+                return p, {"name": name, "mode": "serial", "port": dev_path}
+            except Exception as e:
+                log.warning("Could not open %s: %s", dev_path, e)
+
+    except ImportError:
+        log.warning("pyserial not available, skipping serial detection")
+    except Exception as e:
+        log.error("Serial scan error: %s", e)
 
     log.warning("No printer found")
     return None, None

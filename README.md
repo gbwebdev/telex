@@ -114,10 +114,9 @@ server {
 
 ### Supported hardware
 - Raspberry Pi Zero W (or any RPi with WiFi)
-- USB 80mm ESC/POS thermal printer:
-  - Epson TM-T20II / TM-T20III / TM-T88V / TM-T20X
-  - PRP-250 and generic ESC/POS USB printers
-  - Any USB class 7 device (auto-detected)
+- USB 80mm ESC/POS thermal printer (two connection modes supported):
+  - **USB bulk** (libusb): Epson TM-T20II / TM-T20III / TM-T88V / TM-T20X and generic ESC/POS
+  - **Serial over USB / CDC ACM** (`/dev/ttyACM*`): PRP-250 and similar printers
 
 ### Step 1 — Flash the SD card
 

@@ -75,6 +75,16 @@ Config lives at `/etc/telex/config.json`:
 {"server_url": "https://...", "identifier": "arthur", "password": "...", "poll_interval": 60, "gpio_ticket_pin": 17}
 ```
 
+## Printer detection (`client/printer.py`)
+
+Two connection modes, tried in order:
+
+1. **USB bulk (libusb)** — `escpos.printer.Usb(vid, pid)`. Requires `usblp` kernel module to be blacklisted (it claims the device before libusb can). `install.sh` writes `/etc/modprobe.d/telex-printers.conf` to blacklist it.
+
+2. **CDC ACM / serial-over-USB** — `escpos.printer.Serial('/dev/ttyACMx')`. Printers like PRP-250 present as a virtual serial port instead of a USB bulk device. Requires the `pi` user to be in the `dialout` group (set by `install.sh`).
+
+`printer_info` stored on the server includes a `mode` field (`"usb"` or `"serial"`) to help diagnose issues remotely.
+
 ## Coding conventions
 
 - Python, no type annotations on function bodies (SQLModel fields are typed)

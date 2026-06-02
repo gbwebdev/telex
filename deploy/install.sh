@@ -57,13 +57,27 @@ fi
 
 # ── USB printer permissions ───────────────────────────────────────────────────
 echo "[4/6] Permissions USB imprimante…"
+
+# Blacklist usblp: the kernel module claims USB printer-class devices and marks
+# them busy for libusb (python-escpos). Must be blacklisted for USB bulk mode.
+# CDC ACM printers (/dev/ttyACM*) use the cdc_acm driver and are unaffected.
+echo "blacklist usblp" > /etc/modprobe.d/telex-printers.conf
+modprobe -r usblp 2>/dev/null || true
+
 cat > /etc/udev/rules.d/99-telex-printer.rules << 'EOF'
-# Telex: allow access to USB thermal printers without root
-SUBSYSTEM=="usb", ATTRS{bDeviceClass}=="07", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{bInterfaceClass}=="07", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", MODE="0666"
+# Telex: USB bulk thermal printers (Epson TM series and generic ESC/POS)
+SUBSYSTEM=="usb", ATTRS{bDeviceClass}=="07", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="usb", ATTRS{bInterfaceClass}=="07", GROUP="dialout", MODE="0660"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", GROUP="dialout", MODE="0660"
+# Telex: CDC ACM serial-over-USB printers (e.g. PRP-250)
+SUBSYSTEM=="tty", KERNEL=="ttyACM*", GROUP="dialout", MODE="0660"
 EOF
+
+# Add pi user to dialout for both USB bulk and serial access
+usermod -aG dialout pi 2>/dev/null || true
+
 udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger 2>/dev/null || true
 
 # ── Config ────────────────────────────────────────────────────────────────────
 echo "[5/6] Configuration initiale…"
