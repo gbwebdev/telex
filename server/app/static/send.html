@@ -10,55 +10,121 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <meta name="theme-color" content="#0a0a0a">
+<script>(function(){const t=localStorage.getItem('telex_theme');if(t)document.documentElement.dataset.theme=t;})();</script>
 <style>
-:root { --bg:#0a0a0a; --surface:#141414; --border:#252525; --amber:#e8b84b; --amber-dim:#6b5322; --green:#4caf50; --red:#f44336; --font:'Courier New',monospace; }
-* { box-sizing:border-box; margin:0; padding:0; }
-body { background:var(--bg); color:var(--amber); font-family:var(--font); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
-.card { width:100%; max-width:480px; }
-h1 { font-size:2rem; letter-spacing:.4em; text-align:center; margin-bottom:.3rem; }
-.subtitle { text-align:center; color:var(--amber-dim); font-size:.8rem; margin-bottom:2rem; }
-label { display:block; font-size:.75rem; color:var(--amber-dim); letter-spacing:.1em; margin-bottom:.3rem; margin-top:1rem; }
-input, textarea { width:100%; background:var(--surface); border:1px solid var(--border); color:var(--amber); font-family:var(--font); padding:.6rem .8rem; font-size:.95rem; outline:none; }
-input:focus, textarea:focus { border-color:var(--amber-dim); }
-textarea { resize:vertical; min-height:120px; line-height:1.5; }
-.footer { display:flex; justify-content:space-between; align-items:center; margin-top:.4rem; }
-.char-count { font-size:.8rem; color:var(--amber-dim); }
-.char-count.over { color:var(--red); }
-button[type=submit] { width:100%; margin-top:1.5rem; background:none; border:1px solid var(--amber-dim); color:var(--amber); font-family:var(--font); font-size:.9rem; padding:.65rem; cursor:pointer; letter-spacing:.1em; }
-button[type=submit]:hover { border-color:var(--amber); background:rgba(232,184,75,.07); }
-button[type=submit]:disabled { opacity:.4; cursor:not-allowed; }
-.status { margin-top:1rem; font-size:.85rem; padding:.5rem; text-align:center; display:none; }
-.status.ok { color:var(--green); }
-.status.err { color:var(--red); }
-.admin-link { text-align:center; margin-top:2rem; font-size:.75rem; }
-.admin-link a { color:var(--amber-dim); text-decoration:none; }
-.admin-link a:hover { color:var(--amber); }
+:root {
+  --bg: #0a0a0a; --surface: #141414; --border: #252525;
+  --amber: #e8b84b; --amber-dim: #c8973a;
+  --green: #4caf50; --red: #f44336;
+  --font: 'Courier New', monospace;
+}
+[data-theme="green"] {
+  --bg: #020a06; --surface: #0b1e12; --border: #1c3d28;
+  --amber: #00ff9d; --amber-dim: #00c87a;
+  --green: #00ff9d; --red: #ff5555;
+}
+[data-theme="green"] body { text-shadow: 0 0 6px rgba(0,255,157,.12); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--amber);
+  font-family: var(--font); min-height: 100vh;
+  display: flex; flex-direction: column;
+}
+.main-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+
+/* font-size:14px sets the ch reference so 42ch = 42 Courier New chars at printer size */
+.card { width: 100%; font-size: 14px; max-width: calc(42ch + 1.7rem); }
+
+/* Header */
+.telex-header { text-align: center; margin-bottom: 2rem; }
+.telex-header .logo { font-size: 2rem; }
+.telex-header .logo span { letter-spacing: .5em; display: inline-block; margin-right: -.5em; }
+.telex-header .subtitle {
+  font-size: .9rem; color: var(--amber-dim);
+  margin-top: .4rem; letter-spacing: .1em;
+}
+
+label {
+  display: block; font-size: .75rem; color: var(--amber-dim);
+  letter-spacing: .12em; margin-bottom: .3rem; margin-top: 1.1rem;
+}
+label:first-of-type { margin-top: 0; }
+
+input, textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber); font-family: var(--font);
+  padding: .65rem .85rem; font-size: 1rem; outline: none;
+}
+input:focus, textarea:focus { border-color: var(--amber-dim); }
+textarea { font-size: 14px; line-height: 1.5; min-height: 130px; resize: vertical; }
+textarea::placeholder { color: var(--amber-dim); }
+.char-count { display: block; text-align: right; font-size: .78rem; color: var(--amber-dim); margin-top: .3rem; }
+.char-count.over { color: var(--red); }
+
+.send-btn {
+  width: 100%; margin-top: 1.25rem;
+  background: none; border: 1px solid var(--amber-dim);
+  color: var(--amber); font-family: var(--font);
+  font-size: 1rem; padding: .7rem; cursor: pointer;
+  letter-spacing: .1em;
+}
+.send-btn:hover { border-color: var(--amber); background: rgba(232,184,75,.07); }
+.send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.feedback {
+  margin-top: .75rem; padding: .55rem .75rem;
+  font-size: .85rem; display: none; border-left: 2px solid;
+}
+.feedback.err { color: var(--red); border-color: var(--red); display: block; }
+.feedback.ok  { color: var(--green); border-color: var(--green); display: block; }
+
+.admin-link { text-align: center; margin-top: 1.5rem; font-size: .78rem; }
+.admin-link a { color: var(--amber-dim); text-decoration: none; }
+.admin-link a:hover { color: var(--amber); }
+
+/* Theme toggle */
+.theme-btn { position: fixed; top: .8rem; right: .8rem; background: none; border: 1px solid var(--border); color: var(--amber-dim); cursor: pointer; font-family: var(--font); font-size: .75rem; padding: .25rem .55rem; }
+.theme-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+
+/* Footer */
+.gh-footer { text-align: center; padding: .6rem; font-size: .72rem; color: var(--amber-dim); opacity: .5; border-top: 1px solid var(--border); }
+.gh-footer a { color: inherit; text-decoration: none; }
+.gh-footer a:hover { opacity: 1; color: var(--amber); }
 </style>
 </head>
 <body>
+<button class="theme-btn" onclick="toggleTheme()" title="Changer de thème">◑</button>
+<div class="main-wrap">
 <div class="card">
-  <h1>TELEX</h1>
-  <div class="subtitle">Envoyer un message</div>
 
-  <form id="send-form">
-    <label>IDENTIFIANT DU DESTINATAIRE</label>
-    <input type="text" id="identifier" placeholder="ex: arthur" autocomplete="off" required>
+  <div class="telex-header">
+    <div class="logo"><span>TELEX</span></div>
+    <img src="/favicon.svg" width="64" height="64" alt="" style="display:block;margin:.75rem auto 1rem;">
+    <div class="subtitle">ENVOYER UN MESSAGE</div>
+  </div>
 
-    <label>MOT DE PASSE</label>
-    <input type="password" id="password" autocomplete="off" required>
+  <label>DESTINATAIRE</label>
+  <input type="text" id="identifier" placeholder="ex: arthur" autocomplete="off">
 
-    <label>MESSAGE</label>
-    <textarea id="content" maxlength="500" placeholder="Votre message…" required></textarea>
-    <div class="footer">
-      <span id="char-count" class="char-count">0 / 500</span>
-    </div>
+  <label>MOT DE PASSE</label>
+  <input type="password" id="password" autocomplete="off">
 
-    <button type="submit" id="send-btn">ENVOYER →</button>
-    <div id="status" class="status"></div>
-  </form>
+  <label>MESSAGE <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(500 car. max)</span></label>
+  <textarea id="content" maxlength="500" placeholder="Votre message…"></textarea>
+  <span id="char-count" class="char-count">0 / 500</span>
+
+  <div id="feedback" class="feedback"></div>
+
+  <button class="send-btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
 
   <div class="admin-link"><a href="/">← Administration</a></div>
+
 </div>
+</div>
+<div class="gh-footer"><a href="https://github.com/gbwebdev/telex" target="_blank" rel="noopener">gbwebdev/telex</a></div>
 
 <script>
 document.getElementById('content').addEventListener('input', function() {
@@ -68,47 +134,60 @@ document.getElementById('content').addEventListener('input', function() {
   el.classList.toggle('over', n > 500);
 });
 
-document.getElementById('send-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('send-btn');
-  const status = document.getElementById('status');
-  btn.disabled = true;
-  status.style.display = 'none';
-
-  const body = {
-    identifier: document.getElementById('identifier').value.trim(),
-    password: document.getElementById('password').value,
-    content: document.getElementById('content').value.trim(),
-  };
-
-  if (body.content.length > 500) {
-    show('Message trop long (max 500 caractères).', false);
-    btn.disabled = false;
-    return;
-  }
-
-  const r = await fetch('/api/admin/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await r.json();
-
-  if (r.ok) {
-    show('Message envoyé !', true);
-    document.getElementById('content').value = '';
-    document.getElementById('char-count').textContent = '0 / 500';
-  } else {
-    show(data.detail || 'Erreur lors de l\'envoi.', false);
-  }
-  btn.disabled = false;
+document.getElementById('content').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendMessage();
 });
 
-function show(msg, ok) {
-  const el = document.getElementById('status');
-  el.textContent = msg;
-  el.className = `status ${ok ? 'ok' : 'err'}`;
-  el.style.display = 'block';
+async function sendMessage() {
+  const identifier = document.getElementById('identifier').value.trim();
+  const password = document.getElementById('password').value;
+  const content = document.getElementById('content').value.trim();
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback';
+
+  if (!identifier) { setFeedback('Entrez l\'identifiant du destinataire.', 'err'); return; }
+  if (!password) { setFeedback('Entrez le mot de passe.', 'err'); return; }
+  if (!content) { setFeedback('Le message est vide.', 'err'); return; }
+  if (content.length > 500) { setFeedback('Message trop long (max 500 caractères).', 'err'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+
+  try {
+    const r = await fetch('/api/admin/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password, content }),
+    });
+    const data = await r.json();
+
+    if (r.ok) {
+      setFeedback('Message envoyé !', 'ok');
+      document.getElementById('content').value = '';
+      document.getElementById('char-count').textContent = '0 / 500';
+    } else {
+      setFeedback(data.detail || 'Erreur lors de l\'envoi.', 'err');
+    }
+  } catch {
+    setFeedback('Erreur de connexion. Réessayez.', 'err');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'ENVOYER →';
+}
+
+function setFeedback(msg, type) {
+  const fb = document.getElementById('feedback');
+  fb.textContent = msg;
+  fb.className = `feedback ${type}`;
+}
+
+function toggleTheme() {
+  const current = document.documentElement.dataset.theme || 'amber';
+  const next = current === 'green' ? 'amber' : 'green';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('telex_theme', next);
 }
 </script>
 </body>

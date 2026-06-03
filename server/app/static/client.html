@@ -28,7 +28,10 @@
 body {
   background: var(--bg); color: var(--amber);
   font-family: var(--font); min-height: 100vh;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column;
+}
+.main-wrap {
+  flex: 1; display: flex; align-items: center; justify-content: center;
   padding: 1.5rem;
 }
 
@@ -115,13 +118,14 @@ textarea::placeholder { color: var(--amber-dim); }
 .theme-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
 
 /* Footer */
-.gh-footer { text-align: center; margin-top: 2rem; font-size: .72rem; color: var(--amber-dim); opacity: .5; }
+.gh-footer { text-align: center; padding: .6rem; font-size: .72rem; color: var(--amber-dim); opacity: .5; border-top: 1px solid var(--border); }
 .gh-footer a { color: inherit; text-decoration: none; }
 .gh-footer a:hover { opacity: 1; color: var(--amber); }
 </style>
 </head>
 <body>
 <button class="theme-btn" onclick="toggleTheme()" title="Changer de thème">◑</button>
+<div class="main-wrap">
 <div class="card">
 
   <div class="telex-header">
@@ -169,8 +173,10 @@ textarea::placeholder { color: var(--amber-dim); }
     </div>
   </div>
 
-  <div class="gh-footer"><a href="https://github.com/gbwebdev/telex" target="_blank" rel="noopener">gbwebdev/telex</a></div>
+
 </div>
+</div>
+<div class="gh-footer"><a href="https://github.com/gbwebdev/telex" target="_blank" rel="noopener">gbwebdev/telex</a></div>
 
 <script>
 const identifier = location.pathname.replace(/^\/+|\/+$/g, '');
