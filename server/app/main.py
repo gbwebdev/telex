@@ -31,8 +31,15 @@ def serve_admin():
     return FileResponse(STATIC_DIR / "index.html")
 
 
-# Catch-all: /{identifier} → per-client send page
-# Must be last so it doesn't shadow /api/*, /static/*, /
-@app.get("/{identifier}")
-def serve_client_page(identifier: str):
+# Favicon and PWA assets — must be served from root
+_FAVICON_FILES = [
+    "favicon.ico", "favicon.svg", "favicon-96x96.png",
+    "apple-touch-icon.png", "site.webmanifest",
+    "web-app-manifest-192x192.png", "web-app-manifest-512x512.png",
+]
+
+@app.get("/{filename}")
+def serve_root_file(filename: str):
+    if filename in _FAVICON_FILES:
+        return FileResponse(STATIC_DIR / filename)
     return FileResponse(STATIC_DIR / "client.html")
