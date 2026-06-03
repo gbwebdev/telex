@@ -126,11 +126,11 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
 .gh-footer a { color:inherit; text-decoration:none; }
 .gh-footer a:hover { opacity:1; color:var(--amber); }
 
-/* ── Compose textarea ── */
+/* ── Compose section ── */
+/* font-size:14px calibrates ch to printer character width (42ch = paper width) */
+.compose-card { font-size: 14px; max-width: calc(42ch + 1.7rem); margin: 2rem auto 0; }
 .printer-preview {
-  box-sizing: content-box;
-  width: 42ch;
-  max-width: 100%;
+  width: 100%;
   background: var(--surface);
   color: var(--amber);
   border: 1px solid var(--border);
@@ -138,7 +138,7 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
   font-size: 14px;
   line-height: 1.5;
   padding: .65rem .85rem;
-  min-height: 120px;
+  min-height: 130px;
   resize: vertical;
   outline: none;
 }
@@ -247,20 +247,22 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
 
     <!-- ── Compose ── -->
     <div id="compose-section" class="section">
-      <div class="section-header">
-        <span class="section-title">NOUVEAU MESSAGE</span>
+      <div class="compose-card">
+        <div class="section-header">
+          <span class="section-title">NOUVEAU MESSAGE</span>
+        </div>
+        <div class="section-title" style="margin-bottom:.6rem;">DESTINATAIRES</div>
+        <div id="recipients-list" class="recipients">
+          <div class="loading">Chargement…</div>
+        </div>
+        <div class="section-title" style="margin-top:1.25rem;margin-bottom:.5rem;">MESSAGE <span style="font-size:.7rem;opacity:.6;letter-spacing:.05em;">— 42 colonnes · rendu imprimante</span></div>
+        <textarea id="msg-text" class="printer-preview" placeholder="Votre message…" maxlength="500"></textarea>
+        <div class="compose-footer">
+          <span id="char-count" class="char-count">0 / 500</span>
+          <button class="btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
+        </div>
+        <div id="send-feedback" class="send-feedback"></div>
       </div>
-      <div class="section-title" style="margin-bottom:.6rem;">DESTINATAIRES</div>
-      <div id="recipients-list" class="recipients">
-        <div class="loading">Chargement…</div>
-      </div>
-      <div class="section-title" style="margin-bottom:.5rem;">MESSAGE <span style="font-size:.7rem;opacity:.6;letter-spacing:.05em;">— 42 colonnes · rendu imprimante</span></div>
-      <textarea id="msg-text" class="printer-preview" placeholder="Votre message…" maxlength="500"></textarea>
-      <div class="compose-footer">
-        <span id="char-count" class="char-count">0 / 500</span>
-        <button class="btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
-      </div>
-      <div id="send-feedback" class="send-feedback"></div>
     </div>
 
     <!-- ── Security ── -->
