@@ -99,7 +99,7 @@ else
 fi
 
 # ── Systemd services ──────────────────────────────────────────────────────────
-echo "[6/6] Services systemd…"
+echo "[6/7] Services systemd…"
 
 cp "$SCRIPT_DIR/telex-wifi.service"   "$SERVICE_DIR/"
 cp "$SCRIPT_DIR/telex-portal.service" "$SERVICE_DIR/"
@@ -116,13 +116,33 @@ if systemctl is-active --quiet telex-portal; then
     systemctl restart telex-portal
 fi
 
+# ── Auto-update ───────────────────────────────────────────────────────────────
+echo "[7/7] Service de mise à jour automatique…"
+
+cp "$SCRIPT_DIR/update.sh"              "$INSTALL_DIR/update.sh"
+chmod +x "$INSTALL_DIR/update.sh"
+cp "$SCRIPT_DIR/telex-update.service"  "$SERVICE_DIR/"
+cp "$SCRIPT_DIR/telex-update.timer"    "$SERVICE_DIR/"
+
+# Record installed version (git tag or commit hash)
+if git -C "$REPO_DIR" describe --tags --always >/dev/null 2>&1; then
+    git -C "$REPO_DIR" describe --tags --always > "$INSTALL_DIR/VERSION"
+else
+    echo "dev" > "$INSTALL_DIR/VERSION"
+fi
+
+systemctl daemon-reload
+systemctl enable telex-update.timer --quiet
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 IP=$(hostname -I 2>/dev/null | awk '{print $1}')
 HOSTNAME=$(hostname)
 
 echo ""
+VERSION=$(cat "$INSTALL_DIR/VERSION" 2>/dev/null || echo "?")
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║            Installation terminée ✓                  ║"
+printf "║  Version : %-42s║\n" "$VERSION"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 echo "  Les services démarreront automatiquement au prochain boot."

@@ -1,0 +1,10 @@
+[Unit]
+Description=Telex Auto-Update Timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=24h
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target

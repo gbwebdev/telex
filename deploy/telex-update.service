@@ -1,0 +1,11 @@
+[Unit]
+Description=Telex Auto-Update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/telex/update.sh
+User=root
+StandardOutput=journal
+StandardError=journal
