@@ -121,16 +121,20 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
 .send-feedback.ok { color:var(--green); }
 .send-feedback.err { color:var(--red); }
 
-/* ── Printer-paper textarea ── */
-/* Simulates the thermal printer's 42-char width and paper appearance. */
+/* ── Footer ── */
+.gh-footer { text-align:center; padding:1.5rem 0 .5rem; font-size:.72rem; color:var(--amber-dim); opacity:.5; }
+.gh-footer a { color:inherit; text-decoration:none; }
+.gh-footer a:hover { opacity:1; color:var(--amber); }
+
+/* ── Compose textarea ── */
 .printer-preview {
   box-sizing: content-box;
   width: 42ch;
   max-width: 100%;
-  background: #f4efe3;
-  color: #1a1209;
-  border: 1px solid #c8b99a;
-  font-family: 'Courier New', monospace;
+  background: var(--surface);
+  color: var(--amber);
+  border: 1px solid var(--border);
+  font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
   padding: .65rem .85rem;
@@ -138,8 +142,8 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
   resize: vertical;
   outline: none;
 }
-.printer-preview:focus { border-color: #a09070; }
-.printer-preview::placeholder { color: #c0a87a; }
+.printer-preview:focus { border-color: var(--amber-dim); }
+.printer-preview::placeholder { color: var(--amber-dim); opacity: .6; }
 
 /* ── Messages ── */
 .messages-list { display:flex; flex-direction:column; gap:.75rem; }
@@ -296,6 +300,7 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
       </div>
     </div>
   </main>
+  <div class="gh-footer"><a href="https://github.com/gbwebdev/telex" target="_blank" rel="noopener">gbwebdev/telex</a></div>
 </div>
 
 <div id="toast"></div>
