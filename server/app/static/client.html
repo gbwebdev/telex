@@ -30,7 +30,10 @@ body {
 
 /* Header */
 .telex-header { text-align: center; margin-bottom: 2rem; }
-.telex-header .logo { font-size: 2rem; letter-spacing: .5em; }
+.telex-header .logo { font-size: 2rem; }
+/* inline-block + negative margin-right removes the trailing letter-spacing
+   from the layout box so text-align:center works visually correctly */
+.telex-header .logo span { letter-spacing: .5em; display: inline-block; margin-right: -.5em; }
 .telex-header .to {
   font-size: 1rem; color: var(--amber-dim);
   margin-top: .4rem; letter-spacing: .05em;
@@ -57,28 +60,30 @@ input, textarea {
   color: var(--amber); font-family: var(--font);
   padding: .65rem .85rem; font-size: 1rem; outline: none;
 }
-input:focus, textarea:focus { border-color: var(--amber-dim); }
+input:focus { border-color: var(--amber-dim); }
 input[type="password"] { letter-spacing: .15em; font-size: 1.1rem; }
 
-/* Simulates the thermal printer: 42-char width, paper appearance */
-textarea {
+/* Wraps textarea + char-count so counter aligns to textarea's right edge */
+.compose-field { display: inline-block; max-width: 100%; }
+.compose-field textarea {
+  display: block;
   box-sizing: content-box;
-  width: 42ch;
-  max-width: calc(100% - 1.7rem);
-  background: #f4efe3;
-  color: #1a1209;
-  border: 1px solid #c8b99a;
+  width: 42ch;        /* matches PAPER_WIDTH = 42 in printer.py */
+  max-width: 100%;
+  background: var(--surface);
+  color: var(--amber);
+  border: 1px solid var(--border);
+  font-family: var(--font);
   font-size: 14px;
   line-height: 1.5;
   padding: .65rem .85rem;
   min-height: 130px;
   resize: vertical;
+  outline: none;
 }
-textarea:focus { border-color: #a09070; }
-textarea::placeholder { color: #c0a87a; }
-
-.char-row { display: flex; justify-content: flex-end; margin-top: .3rem; }
-.char-count { font-size: .78rem; color: var(--amber-dim); }
+.compose-field textarea:focus { border-color: var(--amber-dim); }
+.compose-field textarea::placeholder { color: var(--amber-dim); opacity: .5; }
+.char-count { display: block; text-align: right; font-size: .78rem; color: var(--amber-dim); margin-top: .3rem; }
 .char-count.over { color: var(--red); }
 
 .send-btn {
@@ -127,7 +132,7 @@ textarea::placeholder { color: #c0a87a; }
 <div class="card">
 
   <div class="telex-header">
-    <div class="logo">TELEX</div>
+    <div class="logo"><span>TELEX</span></div>
     <div class="to">Message pour</div>
     <div class="name" id="client-name">…</div>
   </div>
@@ -152,8 +157,10 @@ textarea::placeholder { color: #c0a87a; }
            placeholder="••••••••" autofocus>
 
     <label>VOTRE MESSAGE <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(500 car. max)</span></label>
-    <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
-    <div class="char-row"><span id="char-count" class="char-count">0 / 500</span></div>
+    <div class="compose-field">
+      <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
+      <span id="char-count" class="char-count">0 / 500</span>
+    </div>
 
     <div id="form-feedback" class="feedback"></div>
 
