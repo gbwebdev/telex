@@ -1,17 +1,26 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlmodel import Session, select
 
 from ..auth import verify_password
 from ..database import get_session
 from ..models import Client, Delivery, Message
+from .. import rate_limit
 
 router = APIRouter(prefix="/api/clients", tags=["client"])
 
 
+def _real_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host or "unknown"
+
+
 def authenticate_client(
+    request: Request,
     x_client_id: Optional[str] = Header(None),
     x_client_secret: Optional[str] = Header(None),
     session: Session = Depends(get_session),
@@ -21,11 +30,22 @@ def authenticate_client(
             status_code=401,
             detail="X-Client-ID and X-Client-Secret headers required",
         )
+
+    ip = _real_ip(request)
+
+    try:
+        rate_limit.check_allowed(ip, x_client_id, session)
+    except rate_limit.RateLimitExceeded as e:
+        raise HTTPException(status_code=429, detail=e.message)
+
     client = session.exec(
         select(Client).where(Client.identifier == x_client_id)
     ).first()
     if not client or not verify_password(x_client_secret, client.device_password_hash):
+        rate_limit.record_failure(ip, x_client_id, session)
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    rate_limit.record_success(ip, x_client_id, session)
     return client
 
 

@@ -1,5 +1,8 @@
 import secrets
+import string
 import bcrypt
+
+_ALPHABET = string.ascii_letters + string.digits
 
 
 def hash_password(password: str) -> str:
@@ -11,4 +14,4 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def generate_password() -> str:
-    return secrets.token_urlsafe(12)
+    return "".join(secrets.choice(_ALPHABET) for _ in range(32))
