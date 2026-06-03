@@ -32,7 +32,8 @@ body {
   padding: 1.5rem;
 }
 
-.card { width: 100%; max-width: 480px; }
+/* font-size:14px sets the ch reference so 42ch = 42 Courier New chars at printer size */
+.card { width: 100%; font-size: 14px; max-width: calc(42ch + 1.7rem); }
 
 /* Header */
 .telex-header { text-align: center; margin-bottom: 2rem; }
@@ -66,29 +67,10 @@ input, textarea {
   color: var(--amber); font-family: var(--font);
   padding: .65rem .85rem; font-size: 1rem; outline: none;
 }
-input:focus { border-color: var(--amber-dim); }
+input:focus, textarea:focus { border-color: var(--amber-dim); }
 input[type="password"] { letter-spacing: .15em; font-size: 1.1rem; }
-
-/* Wraps textarea + char-count so counter aligns to textarea's right edge */
-.compose-field { display: inline-block; max-width: 100%; }
-.compose-field textarea {
-  display: block;
-  box-sizing: content-box;
-  width: 42ch;        /* matches PAPER_WIDTH = 42 in printer.py */
-  max-width: 100%;
-  background: var(--surface);
-  color: var(--amber);
-  border: 1px solid var(--border);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.5;
-  padding: .65rem .85rem;
-  min-height: 130px;
-  resize: vertical;
-  outline: none;
-}
-.compose-field textarea:focus { border-color: var(--amber-dim); }
-.compose-field textarea::placeholder { color: var(--amber-dim); }
+textarea { font-size: 14px; line-height: 1.5; min-height: 130px; resize: vertical; }
+textarea::placeholder { color: var(--amber-dim); }
 .char-count { display: block; text-align: right; font-size: .78rem; color: var(--amber-dim); margin-top: .3rem; }
 .char-count.over { color: var(--red); }
 
@@ -163,10 +145,8 @@ input[type="password"] { letter-spacing: .15em; font-size: 1.1rem; }
            placeholder="••••••••" autofocus>
 
     <label>VOTRE MESSAGE <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(500 car. max)</span></label>
-    <div class="compose-field">
-      <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
-      <span id="char-count" class="char-count">0 / 500</span>
-    </div>
+    <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
+    <span id="char-count" class="char-count">0 / 500</span>
 
     <div id="form-feedback" class="feedback"></div>
 
