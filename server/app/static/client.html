@@ -210,6 +210,17 @@ async function init() {
 }
 
 document.getElementById('content').addEventListener('input', function() {
+  const clean = this.value.replace(/\p{Extended_Pictographic}/gu, '');
+  if (clean !== this.value) {
+    const pos = this.selectionStart - (this.value.length - clean.length);
+    this.value = clean;
+    this.setSelectionRange(pos, pos);
+    setFeedback('Les emojis ne s\'impriment pas et ont été supprimés.', 'warn');
+    setTimeout(() => {
+      const fb = document.getElementById('form-feedback');
+      if (fb.classList.contains('warn')) fb.className = 'feedback';
+    }, 3000);
+  }
   const n = this.value.length;
   const el = document.getElementById('char-count');
   el.textContent = `${n} / 500`;

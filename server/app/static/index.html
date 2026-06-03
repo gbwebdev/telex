@@ -489,6 +489,13 @@ async function loadRecipients() {
 }
 
 document.getElementById('msg-text').addEventListener('input', function() {
+  const clean = this.value.replace(/\p{Extended_Pictographic}/gu, '');
+  if (clean !== this.value) {
+    const pos = this.selectionStart - (this.value.length - clean.length);
+    this.value = clean;
+    this.setSelectionRange(pos, pos);
+    toast('Emojis supprimés — non supportés par l\'imprimante thermique');
+  }
   const n = this.value.length;
   const el = document.getElementById('char-count');
   el.textContent = `${n} / 500`;
