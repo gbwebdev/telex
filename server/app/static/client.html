@@ -141,11 +141,15 @@ textarea::placeholder { color: var(--amber-dim); }
   font-size: .78rem; padding: .22rem .5rem; cursor: pointer;
 }
 .tool-btn:hover, .tool-btn.active { color: var(--amber); border-color: var(--amber-dim); background: rgba(232,184,75,.06); }
+.tool-btn:disabled { opacity: .3; cursor: not-allowed; background: none; }
 .tool-select {
   background: var(--surface); border: 1px solid var(--border);
   color: var(--amber-dim); font-family: var(--font);
   font-size: .78rem; padding: .2rem .35rem;
 }
+.color-swatches { display: flex; gap: .25rem; align-items: center; }
+.swatch { width: 17px; height: 17px; border: 1px solid var(--border); cursor: pointer; padding: 0; flex-shrink: 0; }
+.swatch.active { box-shadow: 0 0 0 2px var(--amber); }
 .canvas-wrap {
   position: relative; width: 100%;
   padding-bottom: calc(256 / 384 * 100%);
@@ -201,12 +205,21 @@ textarea::placeholder { color: var(--amber-dim); }
       <div class="draw-tools">
         <button type="button" class="tool-btn active" id="tool-pen" onclick="setTool('pen')">✏ Stylo</button>
         <button type="button" class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">⌫ Gomme</button>
+        <button type="button" class="tool-btn" id="tool-fill" onclick="setTool('fill')">⬛ Remplir</button>
         <select id="pen-size" class="tool-select" title="Épaisseur">
           <option value="2">Fin</option>
           <option value="5" selected>Moyen</option>
           <option value="12">Épais</option>
         </select>
+        <div class="color-swatches">
+          <button class="swatch active" data-gray="0" style="background:#000" onclick="setColor(0)" title="Noir"></button>
+          <button class="swatch" data-gray="64" style="background:#404040" onclick="setColor(64)" title="Gris foncé"></button>
+          <button class="swatch" data-gray="128" style="background:#808080" onclick="setColor(128)" title="Gris moyen"></button>
+          <button class="swatch" data-gray="192" style="background:#c0c0c0" onclick="setColor(192)" title="Gris clair"></button>
+          <button class="swatch" data-gray="255" style="background:#fff" onclick="setColor(255)" title="Blanc"></button>
+        </div>
         <span style="flex:1"></span>
+        <button type="button" class="tool-btn" id="undo-btn" onclick="undo()" title="Annuler" disabled>↩ Annuler</button>
         <button type="button" class="tool-btn" onclick="document.getElementById('img-file').click()">⬆ Photo</button>
         <button type="button" class="tool-btn" onclick="clearCanvas()">⊘ Effacer</button>
       </div>
@@ -366,7 +379,7 @@ function newMessage() {
   if (savedPassword) {
     document.getElementById('password').value = savedPassword;
   }
-  clearCanvas();
+  resetCanvas();
   show('form');
   document.getElementById('content').focus();
 }
@@ -382,8 +395,10 @@ function toggleTheme() {
 let imgOpen = false;
 let canvasReady = false;
 let currentTool = 'pen';
+let currentColor = 0;
 let drawing = false;
 let lastX = 0, lastY = 0;
+const undoStack = [];
 
 function toggleImageSection() {
   imgOpen = !imgOpen;
@@ -392,6 +407,50 @@ function toggleImageSection() {
     ? '[ − Masquer le dessin / la photo ]'
     : '[ + Ajouter un dessin ou une photo ]';
   if (imgOpen && !canvasReady) { initCanvas(); canvasReady = true; }
+}
+
+function pushUndo() {
+  const canvas = document.getElementById('draw-canvas');
+  if (undoStack.length >= 20) undoStack.shift();
+  undoStack.push(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height));
+  document.getElementById('undo-btn').disabled = false;
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const canvas = document.getElementById('draw-canvas');
+  canvas.getContext('2d').putImageData(undoStack.pop(), 0, 0);
+  document.getElementById('undo-btn').disabled = undoStack.length === 0;
+}
+
+function getDrawColor() { return currentTool === 'eraser' ? 255 : currentColor; }
+
+function floodFill(canvas, x, y) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const id = ctx.getImageData(0, 0, w, h);
+  const d = id.data;
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const ti = (yi * w + xi) * 4;
+  const tr = d[ti], tg = d[ti+1], tb = d[ti+2];
+  const fc = getDrawColor();
+  if (tr === fc && tg === fc && tb === fc) return;
+  const visited = new Uint8Array(w * h);
+  const stack = [yi * w + xi];
+  while (stack.length) {
+    const idx = stack.pop();
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    const px = idx * 4;
+    if (Math.abs(d[px]-tr) > 25 || Math.abs(d[px+1]-tg) > 25 || Math.abs(d[px+2]-tb) > 25) continue;
+    d[px] = d[px+1] = d[px+2] = fc; d[px+3] = 255;
+    const cx = idx % w, cy = Math.floor(idx / w);
+    if (cx > 0) stack.push(idx-1);
+    if (cx < w-1) stack.push(idx+1);
+    if (cy > 0) stack.push(idx-w);
+    if (cy < h-1) stack.push(idx+w);
+  }
+  ctx.putImageData(id, 0, 0);
 }
 
 function initCanvas() {
@@ -403,50 +462,66 @@ function initCanvas() {
   function pos(e) {
     const r = canvas.getBoundingClientRect();
     const src = e.touches ? e.touches[0] : e;
-    return {
-      x: (src.clientX - r.left) * canvas.width / r.width,
-      y: (src.clientY - r.top) * canvas.height / r.height,
-    };
+    return { x: (src.clientX - r.left) * canvas.width / r.width, y: (src.clientY - r.top) * canvas.height / r.height };
   }
   function dot(p) {
     const sz = +document.getElementById('pen-size').value;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, sz / 2, 0, Math.PI * 2);
-    ctx.fillStyle = currentTool === 'eraser' ? 'white' : 'black';
-    ctx.fill();
+    const c = getDrawColor();
+    ctx.beginPath(); ctx.arc(p.x, p.y, sz/2, 0, Math.PI*2);
+    ctx.fillStyle = `rgb(${c},${c},${c})`; ctx.fill();
   }
   function line(from, to) {
     const sz = +document.getElementById('pen-size').value;
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.lineWidth = sz;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = currentTool === 'eraser' ? 'white' : 'black';
-    ctx.stroke();
+    const c = getDrawColor();
+    ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+    ctx.lineWidth = sz; ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgb(${c},${c},${c})`; ctx.stroke();
   }
-  canvas.addEventListener('mousedown', e => { drawing = true; const p = pos(e); dot(p); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('mousedown', e => {
+    const p = pos(e);
+    if (currentTool === 'fill') { pushUndo(); floodFill(canvas, p.x, p.y); return; }
+    pushUndo(); drawing = true; dot(p); lastX = p.x; lastY = p.y;
+  });
   canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = pos(e); line({x:lastX,y:lastY}, p); lastX = p.x; lastY = p.y; });
   canvas.addEventListener('mouseup', () => drawing = false);
   canvas.addEventListener('mouseleave', () => drawing = false);
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = pos(e); dot(p); lastX = p.x; lastY = p.y; }, {passive:false});
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault(); const p = pos(e);
+    if (currentTool === 'fill') { pushUndo(); floodFill(canvas, p.x, p.y); return; }
+    pushUndo(); drawing = true; dot(p); lastX = p.x; lastY = p.y;
+  }, {passive:false});
   canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = pos(e); line({x:lastX,y:lastY}, p); lastX = p.x; lastY = p.y; }, {passive:false});
   canvas.addEventListener('touchend', () => drawing = false, {passive:false});
 }
 
 function setTool(t) {
   currentTool = t;
-  document.getElementById('tool-pen').classList.toggle('active', t === 'pen');
-  document.getElementById('tool-eraser').classList.toggle('active', t === 'eraser');
-  document.getElementById('draw-canvas').style.cursor = t === 'eraser' ? 'cell' : 'crosshair';
+  ['pen','eraser','fill'].forEach(id => document.getElementById('tool-'+id).classList.toggle('active', t===id));
+  const canvas = document.getElementById('draw-canvas');
+  if (canvas) canvas.style.cursor = t === 'eraser' ? 'cell' : t === 'fill' ? 'pointer' : 'crosshair';
+}
+
+function setColor(gray) {
+  currentColor = gray;
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', +s.dataset.gray === gray));
+  if (currentTool === 'eraser') setTool('pen');
 }
 
 function clearCanvas() {
   if (!canvasReady) return;
+  pushUndo();
   const canvas = document.getElementById('draw-canvas');
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  canvas.getContext('2d').fillStyle = 'white';
+  canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function resetCanvas() {
+  if (!canvasReady) return;
+  const canvas = document.getElementById('draw-canvas');
+  canvas.getContext('2d').fillStyle = 'white';
+  canvas.getContext('2d').fillRect(0, 0, canvas.width, canvas.height);
+  undoStack.length = 0;
+  document.getElementById('undo-btn').disabled = true;
 }
 
 function handleUpload(input) {
@@ -459,8 +534,8 @@ function handleUpload(input) {
     img.onload = () => {
       const canvas = document.getElementById('draw-canvas');
       const ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      pushUndo();
+      ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
       const w = img.width * scale, h = img.height * scale;
       ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
