@@ -320,6 +320,11 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
               <option value="5" selected>Moyen</option>
               <option value="12">Épais</option>
             </select>
+            <div style="display:flex;gap:.15rem;">
+              <button type="button" class="tool-btn active" id="size-s" onclick="setCanvasSize('s')" title="Petite">S</button>
+              <button type="button" class="tool-btn" id="size-m" onclick="setCanvasSize('m')" title="Moyenne">M</button>
+              <button type="button" class="tool-btn" id="size-l" onclick="setCanvasSize('l')" title="Grande">L</button>
+            </div>
             <div class="color-swatches">
               <button class="swatch active" data-gray="0" style="background:#000" onclick="setColor(0)" title="Noir"></button>
               <button class="swatch" data-gray="64" style="background:#404040" onclick="setColor(64)" title="Gris foncé"></button>
@@ -792,9 +797,11 @@ let imgOpen = false;
 let canvasReady = false;
 let currentTool = 'pen';
 let currentColor = 0;
+let currentHeight = 256;
 let drawing = false;
 let lastX = 0, lastY = 0;
 const undoStack = [];
+const CANVAS_HEIGHTS = { s: 256, m: 384, l: 512 };
 
 function toggleImageSection() {
   imgOpen = !imgOpen;
@@ -820,6 +827,23 @@ function undo() {
 }
 
 function getDrawColor() { return currentTool === 'eraser' ? 255 : currentColor; }
+
+function setCanvasSize(key) {
+  ['size-s','size-m','size-l'].forEach(id => document.getElementById(id).classList.toggle('active', id === 'size-'+key));
+  currentHeight = CANVAS_HEIGHTS[key];
+  if (!canvasReady) return;
+  const canvas = document.getElementById('draw-canvas');
+  const tmp = document.createElement('canvas');
+  tmp.width = canvas.width; tmp.height = canvas.height;
+  tmp.getContext('2d').drawImage(canvas, 0, 0);
+  canvas.height = currentHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, currentHeight);
+  ctx.drawImage(tmp, 0, 0);
+  canvas.parentElement.style.paddingBottom = `${currentHeight / canvas.width * 100}%`;
+  undoStack.length = 0;
+  document.getElementById('undo-btn').disabled = true;
+}
 
 function floodFill(canvas, x, y) {
   const ctx = canvas.getContext('2d');
@@ -851,6 +875,8 @@ function floodFill(canvas, x, y) {
 
 function initCanvas() {
   const canvas = document.getElementById('draw-canvas');
+  canvas.height = currentHeight;
+  canvas.parentElement.style.paddingBottom = `${currentHeight / canvas.width * 100}%`;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -925,11 +951,19 @@ function handleUpload(input) {
     img.onload = () => {
       const canvas = document.getElementById('draw-canvas');
       const ctx = canvas.getContext('2d');
-      pushUndo();
+      const targetH = Math.max(192, Math.min(512, Math.round(img.height * canvas.width / img.width)));
+      if (targetH !== canvas.height) {
+        undoStack.length = 0;
+        document.getElementById('undo-btn').disabled = true;
+        canvas.height = targetH;
+        canvas.parentElement.style.paddingBottom = `${targetH / canvas.width * 100}%`;
+        ['size-s','size-m','size-l'].forEach(id => document.getElementById(id).classList.remove('active'));
+        currentHeight = targetH;
+      } else {
+        pushUndo();
+      }
       ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
-      const w = img.width * scale, h = img.height * scale;
-      ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       applyDither(canvas);
     };
     img.src = e.target.result;
