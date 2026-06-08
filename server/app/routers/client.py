@@ -94,6 +94,8 @@ def get_messages(
                     "delivery_id": delivery.id,
                     "message_id": msg.id,
                     "content": msg.content,
+                    "sender": msg.sender,
+                    "image_data": msg.image_data,
                     "sent_at": msg.sent_at.isoformat(),
                 }
             )

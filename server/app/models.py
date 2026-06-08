@@ -21,6 +21,8 @@ class Client(SQLModel, table=True):
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     content: str
+    sender: Optional[str] = None
+    image_data: Optional[str] = None
     sent_at: datetime = Field(default_factory=datetime.utcnow)
 
 

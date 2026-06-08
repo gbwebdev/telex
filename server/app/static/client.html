@@ -121,6 +121,41 @@ textarea::placeholder { color: var(--amber-dim); }
 .gh-footer { text-align: center; padding: .6rem; font-size: .72rem; color: var(--amber-dim); opacity: .5; border-top: 1px solid var(--border); }
 .gh-footer a { color: inherit; text-decoration: none; }
 .gh-footer a:hover { opacity: 1; color: var(--amber); }
+
+/* Image section */
+.img-toggle-btn {
+  display: block; width: 100%; margin-top: .75rem;
+  background: none; border: 1px dashed var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .82rem; padding: .45rem; cursor: pointer; text-align: center;
+}
+.img-toggle-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+.img-section { margin-top: .75rem; }
+.draw-tools {
+  display: flex; gap: .3rem; align-items: center;
+  flex-wrap: wrap; margin-bottom: .4rem;
+}
+.tool-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .78rem; padding: .22rem .5rem; cursor: pointer;
+}
+.tool-btn:hover, .tool-btn.active { color: var(--amber); border-color: var(--amber-dim); background: rgba(232,184,75,.06); }
+.tool-select {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .78rem; padding: .2rem .35rem;
+}
+.canvas-wrap {
+  position: relative; width: 100%;
+  padding-bottom: calc(256 / 384 * 100%);
+  border: 1px solid var(--border);
+}
+.canvas-wrap canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: white; cursor: crosshair; touch-action: none; display: block;
+}
+.img-hint { font-size: .7rem; color: var(--amber-dim); opacity: .6; margin-top: .3rem; text-align: right; }
 </style>
 </head>
 <body>
@@ -150,13 +185,37 @@ textarea::placeholder { color: var(--amber-dim); }
 
   <!-- Send form -->
   <div id="state-form">
+    <label>PRÉNOM <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(optionnel)</span></label>
+    <input type="text" id="sender" maxlength="50" autocomplete="given-name" placeholder="Votre prénom…">
+
     <label>MOT DE PASSE</label>
     <input type="password" id="password" autocomplete="off" inputmode="numeric"
-           placeholder="••••••••" autofocus>
+           placeholder="••••••••">
 
     <label>VOTRE MESSAGE <span style="color:var(--amber-dim);font-size:.7rem;font-weight:normal;">(500 car. max)</span></label>
     <textarea id="content" maxlength="500" placeholder="Écrivez votre message…"></textarea>
     <span id="char-count" class="char-count">0 / 500</span>
+
+    <button type="button" class="img-toggle-btn" id="img-toggle-btn" onclick="toggleImageSection()">[ + Ajouter un dessin ou une photo ]</button>
+    <div class="img-section" id="img-section" style="display:none">
+      <div class="draw-tools">
+        <button type="button" class="tool-btn active" id="tool-pen" onclick="setTool('pen')">✏ Stylo</button>
+        <button type="button" class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">⌫ Gomme</button>
+        <select id="pen-size" class="tool-select" title="Épaisseur">
+          <option value="2">Fin</option>
+          <option value="5" selected>Moyen</option>
+          <option value="12">Épais</option>
+        </select>
+        <span style="flex:1"></span>
+        <button type="button" class="tool-btn" onclick="document.getElementById('img-file').click()">⬆ Photo</button>
+        <button type="button" class="tool-btn" onclick="clearCanvas()">⊘ Effacer</button>
+      </div>
+      <input type="file" id="img-file" accept="image/*" style="display:none" onchange="handleUpload(this)">
+      <div class="canvas-wrap">
+        <canvas id="draw-canvas" width="384" height="256"></canvas>
+      </div>
+      <div class="img-hint">Aperçu impression · noir &amp; blanc · 384 pts</div>
+    </div>
 
     <div id="form-feedback" class="feedback"></div>
 
@@ -247,6 +306,8 @@ document.getElementById('content').addEventListener('keydown', e => {
 async function sendMessage() {
   const password = document.getElementById('password').value;
   const content = document.getElementById('content').value.trim();
+  const sender = document.getElementById('sender').value.trim() || undefined;
+  const image = getImageData() || undefined;
   const fb = document.getElementById('form-feedback');
   fb.className = 'feedback';
 
@@ -262,7 +323,7 @@ async function sendMessage() {
     const r = await fetch(`/api/public/${identifier}/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password, content }),
+      body: JSON.stringify({ password, content, sender, image }),
     });
     const data = await r.json();
 
@@ -305,6 +366,7 @@ function newMessage() {
   if (savedPassword) {
     document.getElementById('password').value = savedPassword;
   }
+  clearCanvas();
   show('form');
   document.getElementById('content').focus();
 }
@@ -314,6 +376,135 @@ function toggleTheme() {
   const next = current === 'green' ? 'amber' : 'green';
   document.documentElement.dataset.theme = next;
   localStorage.setItem('telex_theme', next);
+}
+
+// ── Image / Drawing ──────────────────────────────────────────────────────────
+let imgOpen = false;
+let canvasReady = false;
+let currentTool = 'pen';
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+function toggleImageSection() {
+  imgOpen = !imgOpen;
+  document.getElementById('img-section').style.display = imgOpen ? '' : 'none';
+  document.getElementById('img-toggle-btn').textContent = imgOpen
+    ? '[ − Masquer le dessin / la photo ]'
+    : '[ + Ajouter un dessin ou une photo ]';
+  if (imgOpen && !canvasReady) { initCanvas(); canvasReady = true; }
+}
+
+function initCanvas() {
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return {
+      x: (src.clientX - r.left) * canvas.width / r.width,
+      y: (src.clientY - r.top) * canvas.height / r.height,
+    };
+  }
+  function dot(p) {
+    const sz = +document.getElementById('pen-size').value;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, sz / 2, 0, Math.PI * 2);
+    ctx.fillStyle = currentTool === 'eraser' ? 'white' : 'black';
+    ctx.fill();
+  }
+  function line(from, to) {
+    const sz = +document.getElementById('pen-size').value;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.lineWidth = sz;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = currentTool === 'eraser' ? 'white' : 'black';
+    ctx.stroke();
+  }
+  canvas.addEventListener('mousedown', e => { drawing = true; const p = pos(e); dot(p); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('mousemove', e => { if (!drawing) return; const p = pos(e); line({x:lastX,y:lastY}, p); lastX = p.x; lastY = p.y; });
+  canvas.addEventListener('mouseup', () => drawing = false);
+  canvas.addEventListener('mouseleave', () => drawing = false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; const p = pos(e); dot(p); lastX = p.x; lastY = p.y; }, {passive:false});
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!drawing) return; const p = pos(e); line({x:lastX,y:lastY}, p); lastX = p.x; lastY = p.y; }, {passive:false});
+  canvas.addEventListener('touchend', () => drawing = false, {passive:false});
+}
+
+function setTool(t) {
+  currentTool = t;
+  document.getElementById('tool-pen').classList.toggle('active', t === 'pen');
+  document.getElementById('tool-eraser').classList.toggle('active', t === 'eraser');
+  document.getElementById('draw-canvas').style.cursor = t === 'eraser' ? 'cell' : 'crosshair';
+}
+
+function clearCanvas() {
+  if (!canvasReady) return;
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function handleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!canvasReady) { initCanvas(); canvasReady = true; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('draw-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (canvas.width - w) / 2, (canvas.height - h) / 2, w, h);
+      applyDither(canvas);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function applyDither(canvas) {
+  const ctx = canvas.getContext('2d');
+  const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = id.data, w = canvas.width, h = canvas.height;
+  const g = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) g[i] = 0.299 * d[i*4] + 0.587 * d[i*4+1] + 0.114 * d[i*4+2];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const old = g[y*w+x], nv = old < 128 ? 0 : 255, err = old - nv;
+      g[y*w+x] = nv;
+      if (x+1 < w) g[y*w+x+1] += err * 7/16;
+      if (y+1 < h) {
+        if (x > 0) g[(y+1)*w+x-1] += err * 3/16;
+        g[(y+1)*w+x] += err * 5/16;
+        if (x+1 < w) g[(y+1)*w+x+1] += err / 16;
+      }
+    }
+  }
+  for (let i = 0; i < w * h; i++) {
+    const v = g[i] < 128 ? 0 : 255;
+    d[i*4] = d[i*4+1] = d[i*4+2] = v; d[i*4+3] = 255;
+  }
+  ctx.putImageData(id, 0, 0);
+}
+
+function getImageData() {
+  if (!canvasReady || !imgOpen) return null;
+  const canvas = document.getElementById('draw-canvas');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i] < 250) return canvas.toDataURL('image/png').split(',')[1];
+  }
+  return null;
 }
 
 init();

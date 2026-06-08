@@ -144,6 +144,48 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
 }
 .printer-preview:focus { border-color: var(--amber-dim); }
 .printer-preview::placeholder { color: var(--amber-dim); opacity: .6; }
+.compose-sender {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber); font-family: var(--font); font-size: 14px;
+  padding: .5rem .85rem; outline: none; margin-bottom: .75rem;
+}
+.compose-sender:focus { border-color: var(--amber-dim); }
+.compose-sender::placeholder { color: var(--amber-dim); opacity: .6; }
+
+/* ── Compose image section ── */
+.img-toggle-btn {
+  display: block; width: 100%; margin-top: .6rem;
+  background: none; border: 1px dashed var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .82rem; padding: .4rem; cursor: pointer; text-align: center;
+}
+.img-toggle-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+.img-section { margin-top: .6rem; }
+.draw-tools {
+  display: flex; gap: .3rem; align-items: center;
+  flex-wrap: wrap; margin-bottom: .4rem;
+}
+.tool-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .78rem; padding: .22rem .5rem; cursor: pointer;
+}
+.tool-btn:hover, .tool-btn.active { color: var(--amber); border-color: var(--amber-dim); background: rgba(232,184,75,.06); }
+.tool-select {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--amber-dim); font-family: var(--font);
+  font-size: .78rem; padding: .2rem .35rem;
+}
+.canvas-wrap {
+  position: relative; width: 100%;
+  padding-bottom: calc(256 / 384 * 100%);
+  border: 1px solid var(--border);
+}
+.canvas-wrap canvas {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: white; cursor: crosshair; touch-action: none; display: block;
+}
+.img-hint { font-size: .7rem; color: var(--amber-dim); opacity: .6; margin-top: .3rem; text-align: right; }
 
 /* ── Messages ── */
 .messages-list { display:flex; flex-direction:column; gap:.75rem; }
@@ -255,11 +297,33 @@ label.field { display:flex; flex-direction:column; gap:.3rem; font-size:.75rem; 
         <div id="recipients-list" class="recipients">
           <div class="loading">Chargement…</div>
         </div>
-        <div class="section-title" style="margin-top:1.25rem;margin-bottom:.5rem;">MESSAGE <span style="font-size:.7rem;opacity:.6;letter-spacing:.05em;">— 42 colonnes · rendu imprimante</span></div>
+        <div class="section-title" style="margin-top:1.25rem;margin-bottom:.5rem;">EXPÉDITEUR <span style="font-size:.7rem;opacity:.6;">(optionnel)</span></div>
+        <input type="text" id="msg-sender" class="compose-sender" placeholder="Prénom de l'expéditeur…" maxlength="50">
+        <div class="section-title" style="margin-bottom:.5rem;">MESSAGE <span style="font-size:.7rem;opacity:.6;letter-spacing:.05em;">— 42 colonnes · rendu imprimante</span></div>
         <textarea id="msg-text" class="printer-preview" placeholder="Votre message…" maxlength="500"></textarea>
         <div class="compose-footer">
           <span id="char-count" class="char-count">0 / 500</span>
           <button class="btn" id="send-btn" onclick="sendMessage()">ENVOYER →</button>
+        </div>
+        <button type="button" class="img-toggle-btn" id="img-toggle-btn" onclick="toggleImageSection()">[ + Ajouter un dessin ou une photo ]</button>
+        <div class="img-section" id="img-section" style="display:none">
+          <div class="draw-tools">
+            <button type="button" class="tool-btn active" id="tool-pen" onclick="setTool('pen')">✏ Stylo</button>
+            <button type="button" class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">⌫ Gomme</button>
+            <select id="pen-size" class="tool-select" title="Épaisseur">
+              <option value="2">Fin</option>
+              <option value="5" selected>Moyen</option>
+              <option value="12">Épais</option>
+            </select>
+            <span style="flex:1"></span>
+            <button type="button" class="tool-btn" onclick="document.getElementById('img-file').click()">⬆ Photo</button>
+            <button type="button" class="tool-btn" onclick="clearCanvas()">⊘ Effacer</button>
+          </div>
+          <input type="file" id="img-file" accept="image/*" style="display:none" onchange="handleUpload(this)">
+          <div class="canvas-wrap">
+            <canvas id="draw-canvas" width="384" height="256"></canvas>
+          </div>
+          <div class="img-hint">Aperçu impression · noir &amp; blanc · 384 pts</div>
         </div>
         <div id="send-feedback" class="send-feedback"></div>
       </div>
@@ -511,21 +575,24 @@ document.getElementById('msg-text').addEventListener('input', function() {
 
 async function sendMessage() {
   const content = document.getElementById('msg-text').value.trim();
+  const sender = document.getElementById('msg-sender').value.trim() || undefined;
+  const image = getImageData() || undefined;
   const identifiers = [...document.querySelectorAll('#recipients-list input:checked')].map(i => i.value);
-  const fb = document.getElementById('send-feedback');
 
   if (!content) return showFeedback('Écrivez un message.', false);
   if (content.length > 500) return showFeedback('Trop long (max 500 caractères).', false);
   if (!identifiers.length) return showFeedback('Sélectionnez au moins un destinataire.', false);
 
   document.getElementById('send-btn').disabled = true;
-  const r = await api('/api/admin/messages', { method: 'POST', body: { content, client_identifiers: identifiers } });
+  const r = await api('/api/admin/messages', { method: 'POST', body: { content, sender, image, client_identifiers: identifiers } });
 
   if (r.ok) {
     showFeedback(`Envoyé à ${identifiers.length} destinataire(s).`, true);
     document.getElementById('msg-text').value = '';
+    document.getElementById('msg-sender').value = '';
     document.getElementById('char-count').textContent = '0 / 500';
     document.querySelectorAll('#recipients-list input').forEach(i => { i.checked = false; i.closest('label').classList.remove('selected'); });
+    clearCanvas();
   } else {
     const e = await r.json();
     showFeedback(e.detail || 'Erreur.', false);
@@ -554,7 +621,7 @@ async function loadMessages() {
     return `
     <div class="msg-card">
       <div class="msg-header">
-        <div class="msg-content">${esc(m.content)}</div>
+        <div class="msg-content">${m.sender ? `<span style="color:var(--amber-dim);font-size:.8rem;">De : ${esc(m.sender)}</span><br>` : ''}${esc(m.content)}${m.has_image ? ' <span style="font-size:.75rem;opacity:.6;">[image]</span>' : ''}</div>
         <div class="msg-time">${new Date(m.sent_at + 'Z').toLocaleString('fr-FR')}</div>
       </div>
       <div class="deliveries">
@@ -705,6 +772,112 @@ function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg; el.classList.add('show');
   setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── Image / Drawing ───────────────────────────────────────────────────────────
+let imgOpen = false;
+let canvasReady = false;
+let currentTool = 'pen';
+let drawing = false;
+let lastX = 0, lastY = 0;
+
+function toggleImageSection() {
+  imgOpen = !imgOpen;
+  document.getElementById('img-section').style.display = imgOpen ? '' : 'none';
+  document.getElementById('img-toggle-btn').textContent = imgOpen
+    ? '[ − Masquer le dessin / la photo ]'
+    : '[ + Ajouter un dessin ou une photo ]';
+  if (imgOpen && !canvasReady) { initCanvas(); canvasReady = true; }
+}
+
+function initCanvas() {
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * canvas.width / r.width, y: (src.clientY - r.top) * canvas.height / r.height };
+  }
+  function dot(p) {
+    const sz = +document.getElementById('pen-size').value;
+    ctx.beginPath(); ctx.arc(p.x, p.y, sz/2, 0, Math.PI*2);
+    ctx.fillStyle = currentTool === 'eraser' ? 'white' : 'black'; ctx.fill();
+  }
+  function line(from, to) {
+    const sz = +document.getElementById('pen-size').value;
+    ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y);
+    ctx.lineWidth = sz; ctx.lineCap = 'round';
+    ctx.strokeStyle = currentTool === 'eraser' ? 'white' : 'black'; ctx.stroke();
+  }
+  canvas.addEventListener('mousedown', e => { drawing=true; const p=pos(e); dot(p); lastX=p.x; lastY=p.y; });
+  canvas.addEventListener('mousemove', e => { if(!drawing) return; const p=pos(e); line({x:lastX,y:lastY},p); lastX=p.x; lastY=p.y; });
+  canvas.addEventListener('mouseup', () => drawing=false);
+  canvas.addEventListener('mouseleave', () => drawing=false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; const p=pos(e); dot(p); lastX=p.x; lastY=p.y; }, {passive:false});
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const p=pos(e); line({x:lastX,y:lastY},p); lastX=p.x; lastY=p.y; }, {passive:false});
+  canvas.addEventListener('touchend', () => drawing=false, {passive:false});
+}
+
+function setTool(t) {
+  currentTool = t;
+  document.getElementById('tool-pen').classList.toggle('active', t==='pen');
+  document.getElementById('tool-eraser').classList.toggle('active', t==='eraser');
+  document.getElementById('draw-canvas').style.cursor = t==='eraser' ? 'cell' : 'crosshair';
+}
+
+function clearCanvas() {
+  if (!canvasReady) return;
+  const canvas = document.getElementById('draw-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function handleUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  if (!canvasReady) { initCanvas(); canvasReady = true; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.getElementById('draw-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+      applyDither(canvas);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file); input.value = '';
+}
+
+function applyDither(canvas) {
+  const ctx = canvas.getContext('2d');
+  const id = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = id.data, w = canvas.width, h = canvas.height;
+  const g = new Float32Array(w * h);
+  for (let i = 0; i < w*h; i++) g[i] = 0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const old = g[y*w+x], nv = old < 128 ? 0 : 255, err = old - nv;
+      g[y*w+x] = nv;
+      if (x+1 < w) g[y*w+x+1] += err*7/16;
+      if (y+1 < h) { if (x>0) g[(y+1)*w+x-1]+=err*3/16; g[(y+1)*w+x]+=err*5/16; if(x+1<w) g[(y+1)*w+x+1]+=err/16; }
+    }
+  }
+  for (let i = 0; i < w*h; i++) { const v=g[i]<128?0:255; d[i*4]=d[i*4+1]=d[i*4+2]=v; d[i*4+3]=255; }
+  ctx.putImageData(id, 0, 0);
+}
+
+function getImageData() {
+  if (!canvasReady || !imgOpen) return null;
+  const canvas = document.getElementById('draw-canvas');
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 0; i < data.length; i += 4) { if (data[i] < 250) return canvas.toDataURL('image/png').split(',')[1]; }
+  return null;
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────

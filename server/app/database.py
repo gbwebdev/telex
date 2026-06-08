@@ -21,6 +21,8 @@ def _migrate():
         "ALTER TABLE client ADD COLUMN send_password_hash TEXT",
         "ALTER TABLE client ADD COLUMN send_locked INTEGER DEFAULT 0",
         "ALTER TABLE client ADD COLUMN send_locked_at TEXT",
+        "ALTER TABLE message ADD COLUMN sender TEXT",
+        "ALTER TABLE message ADD COLUMN image_data TEXT",
     ]
     with engine.connect() as conn:
         for stmt in stmts:

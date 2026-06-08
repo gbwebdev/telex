@@ -8,11 +8,13 @@ Two connection modes are supported:
     Requires the pi user to be in the dialout group.
 """
 
+import base64
 import glob
 import json
 import logging
 import textwrap
 from datetime import datetime
+from io import BytesIO
 
 log = logging.getLogger(__name__)
 
@@ -95,7 +97,8 @@ def _hr(p, char="─"):
     p.text(char * PAPER_WIDTH + "\n")
 
 
-def print_message(p, content: str, sent_at: str, client_name: str = ""):
+def print_message(p, content: str, sent_at: str, client_name: str = "",
+                  sender: str = None, image_data: str = None):
     """Print an incoming message."""
     try:
         ts = datetime.fromisoformat(sent_at).strftime("%d/%m/%Y %H:%M")
@@ -111,6 +114,8 @@ def print_message(p, content: str, sent_at: str, client_name: str = ""):
     p.text(f"Recu le : {ts}\n")
     if client_name:
         p.text(f"Pour    : {client_name}\n")
+    if sender:
+        p.text(f"De      : {sender}\n")
     _hr(p)
     p.text("\n")
 
@@ -118,6 +123,16 @@ def print_message(p, content: str, sent_at: str, client_name: str = ""):
     for line in textwrap.wrap(content, width=PAPER_WIDTH) or [""]:
         p.text(line + "\n")
     p.text("\n")
+
+    if image_data:
+        try:
+            from PIL import Image
+            img = Image.open(BytesIO(base64.b64decode(image_data))).convert("1")
+            p.set(align="center")
+            p.image(img)
+            p.text("\n")
+        except Exception as e:
+            log.error("Image print failed: %s", e)
 
     _hr(p)
     p.text("\n\n\n")

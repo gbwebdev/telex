@@ -199,7 +199,11 @@ def main():
                 try:
                     if p is None:
                         raise RuntimeError("No printer")
-                    prn.print_message(p, msg["content"], msg["sent_at"], server_name)
+                    prn.print_message(
+                        p, msg["content"], msg["sent_at"], server_name,
+                        sender=msg.get("sender"),
+                        image_data=msg.get("image_data"),
+                    )
                     ack(conf, did, ok=True)
                     log.info("Printed delivery #%d", did)
                 except Exception as e:

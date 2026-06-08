@@ -1,3 +1,4 @@
+import base64
 import os
 import re
 from datetime import datetime, timedelta
@@ -304,6 +305,10 @@ def resend(
 
 def _create_message(data: dict, session: Session) -> dict:
     content = str(data.get("content", "")).strip()
+    sender = (str(data.get("sender", "")).strip() or None)
+    if sender:
+        sender = sender[:50]
+    image_data = data.get("image") or None
     targets = data.get("client_identifiers") or []
 
     if not content:
@@ -313,7 +318,15 @@ def _create_message(data: dict, session: Session) -> dict:
     if not targets:
         raise HTTPException(status_code=400, detail="at least one recipient required")
 
-    message = Message(content=content)
+    if image_data:
+        if len(image_data) > 600_000:
+            raise HTTPException(status_code=400, detail="Image trop grande")
+        try:
+            base64.b64decode(image_data, validate=True)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Image invalide")
+
+    message = Message(content=content, sender=sender, image_data=image_data)
     session.add(message)
     session.flush()
 
@@ -345,6 +358,8 @@ def _format_message(msg: Message, session: Session) -> dict:
     return {
         "id": msg.id,
         "content": msg.content,
+        "sender": msg.sender,
+        "has_image": bool(msg.image_data),
         "sent_at": msg.sent_at.isoformat(),
         "deliveries": [
             {
